@@ -1727,13 +1727,27 @@ function addBondToSheet() {
         // Create a unique ID for this bond entry
         const bondId = 'bond-' + Date.now() + Math.random().toString(36).substr(2, 9);
 
+        // Get CHA stat value for default bond score
+        const csCharInput = document.getElementById('cs-CHA');
+        let chaValue = 10; // default fallback
+        if (csCharInput) {
+            const parsed = parseInt(csCharInput.value);
+            if (!isNaN(parsed)) chaValue = parsed;
+        } else {
+            const mainCharEl = document.getElementById('CHA-value');
+            if (mainCharEl) {
+                const parsed = parseInt(mainCharEl.innerText);
+                if (!isNaN(parsed)) chaValue = parsed;
+            }
+        }
+
         // Create bond object with parsed values
         const bondObj = {
             id: bondId,
             name: bondName,
             relationship: bondRelationship,
             description: bondDescription,
-            score: 10
+            score: chaValue
         };
 
         window.bondsOnSheet.push(bondObj);

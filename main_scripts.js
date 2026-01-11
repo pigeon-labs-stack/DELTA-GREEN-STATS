@@ -1466,6 +1466,7 @@ if (!window.bondsOnSheet) {
  * Generates unique ID and renders the bond on the sheet
  */
 function addBondToSheet() {
+    console.log('addBondToSheet() called');
     if (!window.currentBond) {
         alert('Generate a bond first!');
         return;
@@ -1491,12 +1492,29 @@ function addBondToSheet() {
     const bondId = 'bond-' + Date.now() + Math.random().toString(36).substr(2, 9);
 
     // Create bond object with parsed values
+    // Get CHR stat value for default bond score - same pattern as buildFoundryJSON
+    const csCharInput = document.getElementById('cs-CHA');
+    let chaValue = 10; // default fallback
+    if (csCharInput) {
+        const parsed = parseInt(csCharInput.value);
+        console.log('cs-CHA found, value:', csCharInput.value, 'parsed:', parsed);
+        if (!isNaN(parsed)) chaValue = parsed;
+    } else {
+        const mainCharEl = document.getElementById('CHA-value');
+        if (mainCharEl) {
+            const parsed = parseInt(mainCharEl.innerText);
+            console.log('CHA-value found, innerText:', mainCharEl.innerText, 'parsed:', parsed);
+            if (!isNaN(parsed)) chaValue = parsed;
+        }
+    }
+    console.log('Final chaValue for bond:', chaValue);
+
     const bondObj = {
         id: bondId,
         name: bondName,
         relationship: bondRelationship,
         description: bondDescription,
-        score: 10
+        score: chaValue
     };
 
     window.bondsOnSheet.push(bondObj);
