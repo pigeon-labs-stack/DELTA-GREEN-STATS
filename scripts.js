@@ -730,9 +730,14 @@ function renderSpecialtySkills() {
         valueInput.id = `specialty-inst-val-${inst.id}`;
         valueInput.value = inst.value;
         valueInput.min = 0;
-        valueInput.max = 100;
+        valueInput.max = 99;
         valueInput.addEventListener('input', () => {
-            inst.value = parseInt(valueInput.value) || 0;
+            // F4: keep state identical to the visible clamp (DOM min/max alone
+            // never prevented typing 150 — the instance kept it in state)
+            let v = parseInt(valueInput.value) || 0;
+            v = Math.max(0, Math.min(99, v));
+            inst.value = v;
+            if (parseInt(valueInput.value) !== v) valueInput.value = String(v);
             window.dgSaveLoad?.save?.();
         });
         const pctSpan = document.createElement('span');
@@ -1905,8 +1910,10 @@ function applyBonusSkills() {
             const baseSkillKey = baseSkillLabel.toLowerCase().replace(/\s+/g, '_');
 
             if (SPECIALTY_SKILL_KEYS.has(baseSkillKey)) {
-                // 'custom…' sentinel means create a blank instance for the player to name
-                const resolvedSpecialty = specialty === 'custom\u2026' ? null : specialty;
+                // F5: the bonus select's option VALUE is '(custom)' (label form,
+                // no ellipsis) while the sentinel constant uses 'custom…' — accept
+                // both, else a literal specialty named "custom" was created.
+                const resolvedSpecialty = (specialty === 'custom\u2026' || specialty === 'custom') ? null : specialty;
                 // Boost an existing specialty instance, or create a new one
                 const existing = appState.specialtyInstances.find(
                     i => i.key === baseSkillKey && i.specialty === resolvedSpecialty
@@ -2016,9 +2023,11 @@ function resetBonusSkills() {
             const baseSkillKey = baseSkillLabel.toLowerCase().replace(/\s+/g, '_');
 
             if (SPECIALTY_SKILL_KEYS.has(baseSkillKey)) {
+                // F5 mirror: normalize the custom sentinel exactly like apply
+                const resolvedSpecialty = (specialty === 'custom\u2026' || specialty === 'custom') ? null : specialty;
                 // Find the matching specialty instance and reverse the bonus
                 const inst = appState.specialtyInstances.find(
-                    i => i.key === baseSkillKey && i.specialty === specialty
+                    i => i.key === baseSkillKey && i.specialty === resolvedSpecialty
                 );
                 if (inst) {
                     inst.value = _restoreValue(entry, inst.value);

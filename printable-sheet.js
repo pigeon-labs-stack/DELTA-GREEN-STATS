@@ -66,10 +66,15 @@ function _dataFromDOM() {
 
   // Derived attributes
   const attrs = calculateAttributes();
+  // F6: mirror the app's SAN ceiling — min(POW×5, 99 − Unnatural) — and keep a
+  // typed 0 (total sanity loss) instead of falling back to the max.
+  const _unn = parseInt(document.getElementById('cs-skill-unnatural')?.value) || 0;
+  const _sanMax = Math.min(attrs[2], 99 - _unn);
+  const _sanCur = parseInt(document.getElementById('cs-sanity-value')?.value);
   const attributes = {
     HP: { max: attrs[0], current: parseInt(document.getElementById('cs-hp')?.value) || attrs[0] },
     WP: { max: attrs[1], current: parseInt(document.getElementById('cs-wp')?.value) || attrs[1] },
-    SAN: { max: attrs[2], current: parseInt(document.getElementById('cs-sanity-value')?.value) || attrs[2] },
+    SAN: { max: _sanMax, current: Number.isFinite(_sanCur) ? _sanCur : _sanMax },
     BP: { max: attrs[3], current: parseInt(document.getElementById('cs-breaking-point')?.value) || attrs[3] }
   };
 
