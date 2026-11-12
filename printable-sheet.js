@@ -22,10 +22,12 @@ function _dlHTML(html, agentName) {
 
 /** Strip HTML tags and decode basic entities (used on Foundry description fields). */
 function _stripTags(html) {
-  return (html || '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-    .trim();
+  // L14: DOMParser, not a regex — regex tag-stripping is bypassable
+  // (<scr<p>pt>) and decodes entities in the wrong order. No script/style
+  // text is allowed to leak through as visible text.
+  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  doc.querySelectorAll('script,style,noscript').forEach(n => n.remove());
+  return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
 /** Escape HTML special characters for safe interpolation into generated markup. */
@@ -480,7 +482,8 @@ function _buildPrintableHTML(data, stateJSON = null) {
     .page { margin:10px auto; box-shadow:0 0 8px rgba(0,0,0,.4); }
   }
   @media print {
-    body { background:#fff; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background:#fff; }
     .page { margin:0; width:100%; padding:4mm 5mm 3mm 5mm; height:297mm; min-height:0; overflow:hidden; page-break-after:always; }
     .page:last-child { page-break-after:auto; }
     .stats-psych-row { flex: 0 0 95mm; overflow:hidden; }

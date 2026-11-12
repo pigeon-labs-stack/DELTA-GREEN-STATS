@@ -693,6 +693,11 @@
             // shortener is contacted, so the sheet never leaves the browser.
             const longUrl = `${location.origin}${location.pathname}#dg=${b64}`;
             _copyToClipboard(longUrl);
+            // L3: chat clients silently truncate very long URLs; the link is
+            // copied, but warn so the sender can choose the printable export.
+            if (longUrl.length > 7500) {
+                setTimeout(() => showToast(`Share link is ${longUrl.length} characters — chat apps may truncate it. Prefer the printable export for long sheets.`), 1200);
+            }
         } catch (e) {
             console.warn('[DG Share]', e);
             showToast('Could not generate share link.');

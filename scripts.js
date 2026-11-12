@@ -521,6 +521,18 @@ function _genInstId() {
  * @param {string} source    - 'profession' | 'bonus' | 'manual'
  */
 function _addSpecialtyInstance(key, specialty, value, source) {
+    // L11: professions.js uses display strings that don't match the curated
+    // SPECIALTY_OPTIONS labels; normalize them so instances land on-list
+    // (visible in the dropdown options) instead of as off-list free text.
+    const SPECIALTY_ALIASES = {
+        'chinese': 'Chinese (Mandarin)', 'mandarin': 'Chinese (Mandarin)',
+        'persian': 'Persian/Farsi', 'farsi': 'Persian/Farsi',
+        'locksmithing': 'Locksmith',
+    };
+    if (specialty) {
+        const alias = SPECIALTY_ALIASES[String(specialty).trim().toLowerCase()];
+        if (alias) specialty = alias;
+    }
     const inst = { id: _genInstId(), key, specialty: specialty || null, value, source };
     appState.specialtyInstances.push(inst);
     return inst;
@@ -1906,6 +1918,16 @@ function applyBonusSkills() {
             }
         } else {
             // Plain base skill
+            const plainBaseKey = skillKey.toLowerCase().replace(/\s+/g, '_');
+            if (SPECIALTY_SKILL_KEYS.has(plainBaseKey)) {
+                // M15: boosting a bare specialty base (e.g. a custom row named
+                // "Science") used to write the hidden base input — invisible,
+                // ignored by the instance list, exported as a generic skill.
+                // Route the boost to a visible specialty instance instead.
+                _recordBonusBaseline(skillKey, 0);
+                _addSpecialtyInstance(plainBaseKey, null, CONFIG.BONUS_SKILL_POINTS, 'bonus');
+                appliedCount++;
+            } else {
             const skillInput = document.getElementById(`cs-skill-${skillKey}`);
             if (skillInput) {
                 _recordBonusBaseline(skillKey, skillInput.value);
@@ -1922,6 +1944,7 @@ function applyBonusSkills() {
                         appliedCount++;
                     }
                 });
+            }
             }
         }
     });
@@ -1999,6 +2022,20 @@ function resetBonusSkills() {
             }
         } else {
             // Plain base skill
+            const plainResetKey = skillKey.toLowerCase().replace(/\s+/g, '_');
+            if (SPECIALTY_SKILL_KEYS.has(plainResetKey)) {
+                // M15 mirror: a bare specialty boost was routed to blank
+                // specialty instances (source 'bonus') — restore and remove
+                // those, not the (non-existent) base input.
+                appState.specialtyInstances.forEach(inst => {
+                    if (inst.key === plainResetKey && inst.source === 'bonus') {
+                        inst.value = _restoreValue(entry, inst.value);
+                    }
+                });
+                appState.specialtyInstances = appState.specialtyInstances.filter(
+                    i => !(i.key === plainResetKey && i.source === 'bonus' && i.value <= 0)
+                );
+            } else {
             const skillInput = document.getElementById(`cs-skill-${skillKey}`);
             if (skillInput) {
                 skillInput.value = _restoreValue(entry, parseInt(skillInput.value) || 0);
@@ -2011,6 +2048,7 @@ function resetBonusSkills() {
                         valueInput.value = _restoreValue(entry, parseInt(valueInput.value) || 0);
                     }
                 });
+            }
             }
         }
     });
@@ -2713,12 +2751,12 @@ function importFoundryJSONToEditor() {
             .filter(item => item.type === 'bond')
             .forEach(item => {
                 const s = item.system || {};
-                const rawDesc = (s.description || '').replace(/<[^>]+>/g, '').trim();
+                const desc = window._stripTags ? window._stripTags(s.description || '') : (s.description || '').replace(/<[^>]+>/g, '').trim();
                 window.bondsOnSheet.push({
                     id: 'bond-' + Date.now() + Math.random().toString(36).substring(2, 11),
                     name: item.name || '',
                     relationship: s.relationship || '',
-                    description: rawDesc,
+                    description: desc,
                     score: s.score ?? 10
                 });
             });
@@ -2890,13 +2928,13 @@ function initBondPyramid() {
     }
 
     function draw(now) {
-        // Skip all canvas work when pyramid is not visible or page is hidden — keep looping
-        if (!window._pyramidVisible || document.hidden) {
-            requestAnimationFrame(draw);
-            return;
-        }
+        // M13: fully STOP the loop when the pyramid is not visible — the old
+        // version kept re-scheduling itself (60 Hz wakeups on 5 of 6 themes
+        // and in background tabs). canvas._resume() restarts it when the
+        // theme flips to xfiles, the tab regains visibility, or typing ends.
+        if (!window._pyramidVisible || document.hidden) { _rafRunning = false; return; }
         // When paused, stop the loop entirely — canvas._resume() will restart it
-        if (window._pyramidPaused) return;
+        if (window._pyramidPaused) { _rafRunning = false; return; }
         // FPS cap — bail early if not enough time has elapsed
         if (now - lastFrameTime < FRAME_MS) {
             requestAnimationFrame(draw);
@@ -2945,9 +2983,22 @@ function initBondPyramid() {
     // runs after setTheme in window.onload, so we must not clobber the value).
     if (window._pyramidVisible === undefined) window._pyramidVisible = false;
     canvas._draw = draw;
-    canvas._resume = () => requestAnimationFrame(draw); // called after typing to restart the loop
+    let _rafRunning = false;
+    canvas._resume = () => { // called on theme switch, tab reveal, and after typing
+        if (_rafRunning) return;
+        _rafRunning = true;
+        requestAnimationFrame(draw);
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && window._pyramidVisible) {
+            // Frames scheduled while hidden are dropped by the browser — force
+            // a fresh loop, otherwise a _resume() made while hidden deadlocks.
+            _rafRunning = false;
+            canvas._resume();
+        }
+    });
 
-    requestAnimationFrame(draw);
+    if (window._pyramidVisible) canvas._resume();
 }
 
 /**
@@ -3016,6 +3067,10 @@ function setTheme(theme, { skipSave = false } = {}) {
         });
         // Gate pyramid RAF loop — only do real drawing work on xfiles
         window._pyramidVisible = (theme === 'xfiles');
+        if (window._pyramidVisible) {
+            const pc = document.getElementById('bond-pyramid-canvas');
+            if (pc && pc._resume) pc._resume();
+        }
         // Rebuild the character sheet form so skill/stat DOM elements pick up the
         // new theme's CSS rather than retaining inline styles from creation time.
         if (typeof populateCharacterSheetForm === 'function') {
@@ -3719,7 +3774,7 @@ function renderLpBonds() {
             const nameVal = escapeHtml(b.name + (b.relationship ? ' — ' + b.relationship : ''));
             const scoreVal = parseInt(b.score) || 0;
             const bondId = escapeHtml(b.id);
-            const descVal = escapeHtml((b.description || '').replace(/<[^>]+>/g, '').trim());
+            const descVal = escapeHtml(window._stripTags ? window._stripTags(b.description || '') : (b.description || '').replace(/<[^>]+>/g, '').trim());
             html += `<tr class="lp-bond-row" data-desc="${descVal}">
                 <td class="lp-tc" style="border-left:none;padding:1px 3px;">
                     <input type="text" class="lp-bond-name-input" name="lp-bond-name" autocomplete="off" value="${nameVal}" data-bond-idx="${i}">
@@ -3887,7 +3942,7 @@ function _populateLpGear() {
                 ammo: s.ammo !== undefined ? String(s.ammo) : ''
             });
         } else {
-            const rawDesc = (s.description || '').replace(/<[^>]+>/g, '').trim();
+            const rawDesc = window._stripTags ? window._stripTags(s.description || '') : (s.description || '').replace(/<[^>]+>/g, '').trim();
             gearLines.push(item.name + (rawDesc ? ': ' + rawDesc : ''));
         }
     });
@@ -4477,29 +4532,22 @@ function addBondToSheet() {
         // Create a unique ID for this bond entry
         const bondId = 'bond-' + Date.now() + Math.random().toString(36).substring(2, 11);
 
-        // Get CHA stat value for default bond score
-        const csCharInput = document.getElementById('cs-CHA');
-        let chaValue = 10; // default fallback
-        if (csCharInput) {
-            const parsed = parseInt(csCharInput.value);
-            if (!isNaN(parsed)) chaValue = parsed;
-        } else {
-            const mainCharEl = document.getElementById('CHA-value');
-            if (mainCharEl) {
-                const parsed = parseInt(mainCharEl.innerText);
-                if (!isNaN(parsed)) chaValue = parsed;
-            }
-        }
-
-        // Create bond object with parsed values
-        const chaEl = document.getElementById('CHA-value');
-        const defaultScore = chaEl ? (parseInt(chaEl.innerText) || 10) : 10;
+                // Get CHA stat value for default bond score (L6: single source —
+                // character-form input first, wizard span as fallback; the old
+                // code computed this twice and silently dropped the first).
+                const chaParsed = (() => {
+                    const cs = document.getElementById('cs-CHA');
+                    if (cs) { const n = parseInt(cs.value, 10); if (!isNaN(n)) return n; }
+                    const sp = document.getElementById('CHA-value');
+                    if (sp) { const n = parseInt(sp.innerText, 10); if (!isNaN(n)) return n; }
+                    return 10;
+                })();
         const bondObj = {
             id: bondId,
             name: bondName,
             relationship: bondRelationship,
             description: bondDescription,
-            score: defaultScore
+            score: chaParsed
         };
 
         window.bondsOnSheet.push(bondObj);

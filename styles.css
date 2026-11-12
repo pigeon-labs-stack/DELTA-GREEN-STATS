@@ -3185,6 +3185,37 @@ textarea {
     outline-offset: 2px;
 }
 
+/* M14: printing the live app. Browsers drop background colors on print,
+   which left every dark theme printing light-on-white (illegible).
+   Force black-on-white and hide the floating chrome. */
+@media print {
+    body,
+    .content {
+        background: #fff !important;
+        background-image: none !important;
+        color: #000 !important;
+    }
+    .content :is(div, span, p, li, td, th, label, h1, h2, h3, legend, summary, a, button) {
+        color: #000 !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+    .content :is(input, select, textarea) {
+        color: #000 !important;
+        background: #fff !important;
+        border-color: #999 !important;
+    }
+    #dr-panel,
+    #dg-toast,
+    #dg-save-status,
+    #theme-selector,
+    #specialty-tooltip-panel,
+    .lp-tracker {
+        display: none !important;
+    }
+}
+
 /* LP sheet focus states were background-only (near-invisible on paper) */
 .lp-sheet :is(button, input, select, textarea, [tabindex]):focus-visible,
 #lp-adv-modal :is(button, input, select, textarea):focus-visible {

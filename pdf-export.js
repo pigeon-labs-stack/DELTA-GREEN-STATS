@@ -395,11 +395,14 @@
                     if (val > 0) skills[key] = val;
                 });
 
+                // L5: ?? not || — an HP/WP/SAN of 0 (LP-zeroed agent) must
+                // survive PDF import; the old chain fell through to MAXIMUM.
+                const _num = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
                 const derived = {
-                    hp: parseInt(readField('CURRENTHit Points HP')) || parseInt(readField('MAXIMUMHit Points HP')) || 0,
-                    wp: parseInt(readField('CURRENTWillpower Points WP')) || parseInt(readField('MAXIMUMWillpower Points WP')) || 0,
-                    san: parseInt(readField('CURRENTSanity Points SAN')) || parseInt(readField('MAXIMUMSanity Points SAN')) || 0,
-                    bp: parseInt(readField('CURRENTBreaking Point BP')) || 0,
+                    hp: _num(readField('CURRENTHit Points HP')) ?? (_num(readField('MAXIMUMHit Points HP')) ?? 0),
+                    wp: _num(readField('CURRENTWillpower Points WP')) ?? (_num(readField('MAXIMUMWillpower Points WP')) ?? 0),
+                    san: _num(readField('CURRENTSanity Points SAN')) ?? (_num(readField('MAXIMUMSanity Points SAN')) ?? 0),
+                    bp: _num(readField('CURRENTBreaking Point BP')) ?? 0,
                 };
 
                 const sanity = {

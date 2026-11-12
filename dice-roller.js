@@ -44,16 +44,20 @@
     // Critical Success: 01 always, OR matching dice (11,22,33,44) on a success
     // Fumble:           00/100 always, OR matching dice (55,66,77,88,99) on a failure
     function evaluate(roll, target) {
-        if (!target || target <= 0) return null;
+        // L13: a 0% skill is legal (skill 0 after creation) — official tiers
+        // still apply: 01 always critical, 00 always fumble, doubles on a
+        // failure fumble, everything else fails. Returning null hid the
+        // result box for every 0%-skill roll.
+        const t = Number.isFinite(target) ? target : 0;
         if (roll === 1) return { tier: 'critical', label: 'CRITICAL SUCCESS', color: '#ffd700' };
         if (roll === 100) return { tier: 'fumble', label: 'FUMBLE', color: '#ff1744' };
         const tens = Math.floor(roll / 10);
         const units = roll % 10;
         if (tens === units) {
-            if (roll <= target) return { tier: 'critical', label: 'CRITICAL SUCCESS', color: '#ffd700' };
+            if (roll <= t) return { tier: 'critical', label: 'CRITICAL SUCCESS', color: '#ffd700' };
             return { tier: 'fumble', label: 'FUMBLE', color: '#ff1744' };
         }
-        if (roll <= target) return { tier: 'success', label: 'SUCCESS', color: '#69f0ae' };
+        if (roll <= t) return { tier: 'success', label: 'SUCCESS', color: '#69f0ae' };
         return { tier: 'failure', label: 'FAILURE', color: '#ff6d00' };
     }
 
