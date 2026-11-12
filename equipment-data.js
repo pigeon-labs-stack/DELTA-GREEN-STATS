@@ -26,12 +26,12 @@ window.DG_EQUIPMENT_CATALOG = [
     {
         category: 'Firearms', name: 'Light rifle or carbine', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/rifle.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Use the Lethality rating if firing bursts. Examples: AR-15, Colt M4, FN SCAR-L. <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '100M', damage: '1D12', armorPiercing: 3, lethality: 10, isLethal: false, killRadius: 'N/A', ammo: '10 or 30', expense: 'Standard', equipped: true }
+        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Use the Lethality rating if firing bursts. Examples: AR-15, Colt M4, FN SCAR-L. <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '100M', damage: '1D12', armorPiercing: 3, lethality: 10, isLethal: true, killRadius: 'N/A', ammo: '10 or 30', expense: 'Standard', equipped: true }
     },
     {
         category: 'Firearms', name: 'Heavy rifle', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/rifle.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Examples: H&amp;K G3, FN FAL, Remington Model 700 (M24). <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '150M', damage: '1D12+2', armorPiercing: 5, lethality: 10, isLethal: false, killRadius: 'N/A', ammo: '10 or 20', expense: 'Unusual', equipped: true }
+        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Examples: H&amp;K G3, FN FAL, Remington Model 700 (M24). <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '150M', damage: '1D12+2', armorPiercing: 5, lethality: 10, isLethal: true, killRadius: 'N/A', ammo: '10 or 20', expense: 'Unusual', equipped: true }
     },
     {
         category: 'Firearms', name: 'Very heavy rifle', type: 'weapon',
@@ -41,7 +41,7 @@ window.DG_EQUIPMENT_CATALOG = [
     {
         category: 'Firearms', name: 'Submachine gun (SMG)', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/smg.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Examples: B&amp;T MP9, FN P90, H&amp;K MP5, IMI Uzi, KRISS Vector. <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '1D10', armorPiercing: 0, lethality: 10, isLethal: false, killRadius: 'N/A', ammo: '30', expense: 'Unusual', equipped: true }
+        system: { name: '', description: '<p><em><strong>RESTRICTED IF CAPABLE OF FULLY AUTOMATIC FIRE.</strong> Examples: B&amp;T MP9, FN P90, H&amp;K MP5, IMI Uzi, KRISS Vector. <strong>Lethality: 10%</strong></em></p>', skill: 'firearms', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '1D10', armorPiercing: 0, lethality: 10, isLethal: true, killRadius: 'N/A', ammo: '30', expense: 'Unusual', equipped: true }
     },
     {
         category: 'Firearms', name: 'Shotgun (firing shot)', type: 'weapon',

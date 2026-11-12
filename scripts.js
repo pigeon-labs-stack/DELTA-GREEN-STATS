@@ -1577,6 +1577,16 @@ function applyProfessionSkills() {
         const btn = document.getElementById('apply-profession-button');
         if (btn) { btn.classList.add('apply-profession-done'); btn.textContent = 'Professional Skills Applied'; }
         window.dgSaveLoad?.showToast?.('Professional skills applied');
+        // H7: professions like Scientist grant specialty groups ("choose one")
+        // rendered as blank instances — tell the player to name them.
+        const _blankSpec = appState.specialtyInstances.filter(
+            i => i.source === 'profession' && !i.specialty
+        ).length;
+        if (_blankSpec > 0) {
+            window.dgSaveLoad?.showToast?.(
+                `Choose a specialty for the ${_blankSpec} highlighted profession skill${_blankSpec > 1 ? 's' : ''} (orange dropdowns).`
+            );
+        }
     } else {
         alert('No skills were applied. Make sure the skills exist in the character sheet.');
     }
