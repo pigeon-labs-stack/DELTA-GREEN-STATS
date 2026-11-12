@@ -21,6 +21,19 @@
     // Suppress auto-save while we are restoring state
     let _restoring = false;
 
+    // Suppress auto-save after a cancelled/invalid share-link import: the
+    // beforeunload flush must not overwrite the local character with the
+    // (blank) sheet shown while no import was applied.
+    let _suppressAutoSave = false;
+
+    const THEMES = ['xfiles', 'modern', 'son-of-sam', 'field-notes', 'field-doc', 'mobile'];
+
+    function _clampInt(v, def, lo, hi) {
+        const n = parseInt(v, 10);
+        if (!Number.isFinite(n)) return def;
+        return Math.min(hi, Math.max(lo, n));
+    }
+
     /* =========================================================================
        COLLECT
     ========================================================================= */
@@ -256,15 +269,18 @@
         // Top-level stat spans — this triggers the MutationObserver which calls
         // populateCharacterSheetForm() and overwrites form values.  That is fine
         // because Phase 2 (100 ms later) restores them after the observer fires.
+        // SECURITY: numeric coercion — imported stat values must never reach the
+        // DOM as strings (they are re-rendered into number inputs elsewhere).
         if (state.stats) {
             STATS.forEach(stat => {
                 const el = document.getElementById(`${stat}-value`);
                 if (!el) return;
-                el.innerText = state.stats[stat];
+                const v = _clampInt(state.stats[stat], 3, 3, 18);
+                el.innerText = v;
                 const x5 = document.getElementById(`${stat}-x5-value`);
-                if (x5) x5.innerText = state.stats[stat] * 5;
+                if (x5) x5.innerText = v * 5;
                 const desc = document.getElementById(`${stat}-descriptor`);
-                if (desc && typeof getDescriptor === 'function') desc.innerText = getDescriptor(stat, state.stats[stat]);
+                if (desc && typeof getDescriptor === 'function') desc.innerText = getDescriptor(stat, v);
             });
             if (typeof updateTotalPoints === 'function') updateTotalPoints();
         }
@@ -275,7 +291,7 @@
             if (state.csStats) {
                 STATS.forEach(stat => {
                     const el = document.getElementById(`cs-${stat}`);
-                    if (el) el.value = state.csStats[stat] ?? state.stats?.[stat] ?? 3;
+                    if (el) el.value = _clampInt(state.csStats[stat] ?? state.stats?.[stat], 3, 3, 18);
                 });
             }
 
@@ -553,7 +569,7 @@
        PERSISTENCE
     ========================================================================= */
     function save() {
-        if (_restoring) return;
+        if (_restoring || _suppressAutoSave) return;
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState()));
             _flashSaved();
@@ -647,32 +663,19 @@
             // URL-safe base64: replace +→- /→_ and strip = padding so the hash
             // survives copy-paste through email/messaging without getting mangled.
             const b64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            // SECURITY: the character data stays in the URL fragment only —
+            // the full fragment URL is copied directly. No third-party
+            // shortener is contacted, so the sheet never leaves the browser.
             const longUrl = `${location.origin}${location.pathname}#dg=${b64}`;
-
-            // Attempt TinyURL shortening; fall back to full URL on error or timeout.
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
-            fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`, { signal: controller.signal })
-                .then(r => r.ok ? r.text() : Promise.reject(new Error('TinyURL error')))
-                .then(short => {
-                    clearTimeout(timeout);
-                    const url = short.trim().startsWith('http') ? short.trim() : longUrl;
-                    _copyToClipboard(url, url === longUrl);
-                })
-                .catch(() => {
-                    clearTimeout(timeout);
-                    _copyToClipboard(longUrl, true);
-                });
+            _copyToClipboard(longUrl);
         } catch (e) {
             console.warn('[DG Share]', e);
             showToast('Could not generate share link.');
         }
     }
 
-    function _copyToClipboard(url, isLong) {
-        const msg = isLong
-            ? 'Share link copied! (full URL — TinyURL unavailable)'
-            : 'Short share link copied to clipboard!';
+    function _copyToClipboard(url) {
+        const msg = 'Share link copied to clipboard!';
         if (navigator.clipboard?.writeText) {
             navigator.clipboard.writeText(url)
                 .then(() => showToast(msg))
@@ -693,25 +696,127 @@
         ta.remove();
     }
 
-    function loadFromURL() {
+    /* =========================================================================
+       IMPORT VALIDATION / SHARE-LINK SAFETY
+    ========================================================================= */
+    function _hasLocalCharacter() {
         try {
-            const hash = location.hash;
-            if (!hash.startsWith('#dg=')) return false;
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            const s = JSON.parse(raw);
+            return !!(s && s.v === 1);
+        } catch (_) { return false; }
+    }
+
+    /**
+     * Validate an imported character payload. Accepted shape: plain object with v === 1.
+     * All numeric fields are coerced/clamped (hostile "1\" autofocus onfocus=..."
+     * strings become numbers); free-text fields stay strings (they render through
+     * DOM value/textContent or escaped sinks). Unknown keys are preserved for
+     * forward-compatibility, so existing v1 saves/links load unchanged.
+     * Returns null when the payload is unusable — caller must keep the local character.
+     */
+    function validateState(state) {
+        if (!state || typeof state !== 'object' || Array.isArray(state) || state.v !== 1) return null;
+        const out = { ...state };
+        if (out.stats && typeof out.stats === 'object') {
+            const s = {};
+            STATS.forEach(k => { if (out.stats[k] !== undefined) s[k] = _clampInt(out.stats[k], 3, 3, 18); });
+            out.stats = s;
+        }
+        if (out.csStats && typeof out.csStats === 'object') {
+            const s = {};
+            STATS.forEach(k => { if (out.csStats[k] !== undefined) s[k] = _clampInt(out.csStats[k], 3, 3, 18); });
+            out.csStats = s;
+        }
+        if (out.derived && typeof out.derived === 'object') {
+            out.derived = {
+                hp: _clampInt(out.derived.hp, 0, 0, 999),
+                wp: _clampInt(out.derived.wp, 0, 0, 999),
+                san: _clampInt(out.derived.san, 0, 0, 999),
+                bp: _clampInt(out.derived.bp, 0, 0, 999),
+            };
+        }
+        if (out.skills && typeof out.skills === 'object') {
+            const sk = {};
+            Object.keys(out.skills).forEach(k => { sk[k] = _clampInt(out.skills[k], 0, 0, 999); });
+            out.skills = sk;
+        }
+        if (Array.isArray(out.customSkills)) out.customSkills.forEach(cs => { cs.value = _clampInt(cs.value, 0, 0, 999); });
+        if (Array.isArray(out.specialtyInstances)) out.specialtyInstances.forEach(si => { si.value = _clampInt(si.value, 0, 0, 999); });
+        if (Array.isArray(out.lpCustomSkills)) out.lpCustomSkills.forEach(sk => { sk.val = String(sk.val ?? '').replace(/[^\d.%]/g, ''); });
+        if (Array.isArray(out.lpWeapons)) out.lpWeapons.forEach(w => { w.skillPct = String(w.skillPct ?? '').replace(/[^\d.%]/g, ''); });
+        if (Array.isArray(out.bonds)) out.bonds.forEach(b => { if (b && b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); });
+        if (out.appliedBonuses && typeof out.appliedBonuses === 'object') {
+            const ab = {};
+            Object.keys(out.appliedBonuses).forEach(k => { ab[k] = _clampInt(out.appliedBonuses[k], 0, -9999, 9999); });
+            out.appliedBonuses = ab;
+        }
+        if (out.theme && !THEMES.includes(out.theme)) delete out.theme;
+        if (Array.isArray(out.equipment)) {
+            out.equipment = out.equipment.filter(e =>
+                typeof e === 'string' || (e && typeof e === 'object' && e.isCustom === true && typeof e.name === 'string'));
+        }
+        return out;
+    }
+
+    /**
+     * Validate + (when a local character exists) confirm + apply an imported state.
+     * Returns true ONLY when the state was applied. Invalid payloads, unsupported
+     * versions and cancelled confirmations never touch the DOM and never clear
+     * the local save; _suppressAutoSave keeps the beforeunload flush from
+     * overwriting it with a blank sheet.
+     */
+    function _applyImportedState(state, sourceLabel) {
+        const clean = validateState(state);
+        if (!clean) {
+            showToast('Invalid character data — nothing was loaded. Your current character is unchanged.');
+            return false;
+        }
+        if (_hasLocalCharacter() &&
+            !confirm(`Replace the current character with the ${sourceLabel}?\n\nCancel keeps your current character.`)) {
+            _suppressAutoSave = true;
+            showToast('Import cancelled — your saved character was kept. Reload the page to open it.');
+            return false;
+        }
+        _suppressAutoSave = false;
+        applyState(clean);
+        return true;
+    }
+
+    function loadFromURL() {
+        const hash = location.hash;
+        if (!hash.startsWith('#dg=')) return false;
+        // Consume the hash first: on every outcome (success, invalid, cancelled)
+        // a reload must not re-prompt and must fall back to the local save.
+        history.replaceState(null, '', location.pathname + location.search);
+        let state = null;
+        let parsed = false;
+        try {
             // Reverse URL-safe base64 back to standard base64 before decoding.
             // Also accept legacy links that used standard base64 (with + / =).
             const raw = hash.slice(4).replace(/-/g, '+').replace(/_/g, '/');
             const b64 = raw.padEnd(raw.length + (4 - raw.length % 4) % 4, '=');
             const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
             const json = new TextDecoder().decode(bytes);
-            const state = JSON.parse(json);
-            applyState(state);
-            history.replaceState(null, '', location.pathname + location.search);
-            showToast('Character loaded from share link!');
-            return true;
+            state = JSON.parse(json);
+            parsed = true;
         } catch (e) {
             console.warn('[DG URL Load]', e);
-            return false;
         }
+        if (parsed && (!state || typeof state !== 'object' || state.v !== 1)) {
+            showToast('Share link is invalid or uses an unsupported format — your saved character is unchanged.');
+            return false; // fall through to the local save
+        }
+        if (_applyImportedState(state, 'shared character link')) {
+            showToast('Character loaded from share link!');
+            return true;
+        }
+        if (!parsed) {
+            showToast('Share link is invalid — your saved character is unchanged.');
+            return false; // fall through to the local save
+        }
+        return true; // cancelled by user (toast already shown) — keep save, skip loadLocal
     }
 
     /* =========================================================================
@@ -746,6 +851,7 @@
     let _syncDebounce;
     function _onUserChange(e) {
         if (_restoring) return;
+        _suppressAutoSave = false; // any real user edit re-enables persistence
         clearTimeout(_debounce);
         _debounce = setTimeout(save, 1500);
         // Keep LP sheet skill/stat display in sync when editing from any theme
@@ -779,15 +885,17 @@
             }
             let state;
             try {
-                // Reverse the </script> escaping applied during export
+                // Reverse the escaping applied during export (old sheets: <\/script>;
+                // new sheets: every '<' written as \u003c — JSON.parse decodes both)
                 state = JSON.parse(match[1].replace(/<\\\/script>/gi, '</script>'));
             } catch (ex) {
                 alert('Could not parse character data: ' + ex.message);
                 return;
             }
-            applyState(state);
-            setTimeout(() => { save(); if (typeof syncLpFromForm === 'function') syncLpFromForm(); }, 300);
-            showToast('Character loaded from printable sheet!');
+            if (_applyImportedState(state, 'printable sheet')) {
+                setTimeout(() => { save(); if (typeof syncLpFromForm === 'function') syncLpFromForm(); }, 300);
+                showToast('Character loaded from printable sheet!');
+            }
         };
         reader.readAsText(file);
     }
@@ -831,13 +939,13 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function (ev) {
+                let state = null;
                 try {
-                    const state = JSON.parse(ev.target.result);
-                    applyState(state);
+                    state = JSON.parse(ev.target.result);
+                } catch (_) { /* handled below */ }
+                if (_applyImportedState(state, 'sheet file')) {
                     setTimeout(() => { save(); syncLpFromForm?.(); }, 300);
                     showToast('Sheet loaded from file!');
-                } catch (_) {
-                    showToast('Invalid file — could not load sheet.');
                 }
             };
             reader.readAsText(file);
@@ -863,6 +971,6 @@
     // This ensures in-progress state (checked skills, edits within the 1.5 s debounce window)
     // is always committed to localStorage before the page disappears.
     window.addEventListener('beforeunload', () => {
-        if (!_restoring && !_clearing) try { save(); } catch (e) { }
+        if (!_restoring && !_clearing && !_suppressAutoSave) try { save(); } catch (e) { }
     });
 })();

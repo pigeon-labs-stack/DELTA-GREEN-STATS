@@ -37,6 +37,12 @@ function _esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** SECURITY: coerce a possibly-imported value to a finite integer (0 when not numeric). */
+function _int(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
 // ─── Data sources ────────────────────────────────────────────────────────────
 
 /**
@@ -204,17 +210,18 @@ function _dataFromFoundryJSON(obj) {
   const professionTitle = biography.profession || '';
 
   // Stats — canonical order: STR DEX CON INT POW CHA
+  // SECURITY: numeric coercion — imported Foundry JSON must not carry markup.
   const STAT_KEYS = ['str', 'dex', 'con', 'int', 'pow', 'cha'];
   const statsArr = STAT_KEYS.map(key => {
-    const raw = sys.statistics?.[key]?.value || 0;
+    const raw = _int(sys.statistics?.[key]?.value);
     return { label: key.toUpperCase(), raw, x5: raw * 5 };
   });
 
   const attributes = {
-    HP: { max: sys.health?.max ?? 0, current: sys.health?.value ?? sys.health?.max ?? 0 },
-    WP: { max: sys.wp?.max ?? 0, current: sys.wp?.value ?? sys.wp?.max ?? 0 },
-    SAN: { max: (sys.statistics?.pow?.value ?? 0) * 5, current: sys.sanity?.value ?? 0 },
-    BP: { max: sys.sanity?.currentBreakingPoint ?? 0, current: sys.sanity?.currentBreakingPoint ?? 0 }
+    HP: { max: _int(sys.health?.max), current: _int(sys.health?.value ?? sys.health?.max) },
+    WP: { max: _int(sys.wp?.max), current: _int(sys.wp?.value ?? sys.wp?.max) },
+    SAN: { max: _int(sys.statistics?.pow?.value) * 5, current: _int(sys.sanity?.value) },
+    BP: { max: _int(sys.sanity?.currentBreakingPoint), current: _int(sys.sanity?.currentBreakingPoint) }
   };
 
   // ---  Skills  ---
@@ -229,7 +236,7 @@ function _dataFromFoundryJSON(obj) {
     Object.entries(sys.skills).forEach(([key, sk]) => {
       if (!sk) return;
       const label = sk.label || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      skillsList.push({ name: label, value: sk.proficiency ?? 0, specialty: '' });
+      skillsList.push({ name: label, value: _int(sk.proficiency), specialty: '' });
       if (_SPECIALTY_KEY_SET.has(key) && label.includes('(')) {
         const m = label.match(/\(([^)]+)\)/);
         if (m) coveredTyped.add(key + ':' + m[1]);
@@ -247,7 +254,7 @@ function _dataFromFoundryJSON(obj) {
         if (coveredTyped.has(baseKey + ':' + label)) return; // already in skills list
       }
       const displayName = (group && group !== 'Custom') ? `${group} (${label})` : label;
-      skillsList.push({ name: displayName, value: ts.proficiency ?? 0, specialty: '' });
+      skillsList.push({ name: displayName, value: _int(ts.proficiency), specialty: '' });
     });
   }
 
@@ -268,7 +275,7 @@ function _dataFromFoundryJSON(obj) {
         let skillPct = '';
         if (s.skill && sys.skills?.[s.skill]) {
           const prof = sys.skills[s.skill].proficiency;
-          if (prof !== undefined && prof !== null) skillPct = prof + '%';
+          if (prof !== undefined && prof !== null) skillPct = _int(prof) + '%';
         }
         weapons.push({
           name: item.name || '',
@@ -276,7 +283,7 @@ function _dataFromFoundryJSON(obj) {
           range: s.base_range || s.range || '',
           damage: s.damage || '',
           armorPiercing: s.armor_piercing || false,
-          lethality: s.lethality ? s.lethality + '%' : '',
+          lethality: s.lethality ? _int(s.lethality) + '%' : '',
           killRadius: s.kill_radius || s.killRadius || '',
           ammo: s.ammo !== undefined ? String(s.ammo) : ''
         });
@@ -299,7 +306,7 @@ function _dataFromFoundryJSON(obj) {
           name: item.name || s.name || 'Unknown',
           description: _stripTags(s.description || ''),
           relationship: s.relationship || '',
-          score: s.score || 0
+          score: _int(s.score)
         });
         break;
       }
@@ -338,8 +345,8 @@ function _buildPrintableHTML(data, stateJSON = null) {
   const statsRowsHtml = statsArr.map(({ label, raw, x5 }, idx) => `
         <tr>
             <td style="border:1px solid #000;border-top:none;border-left:none;padding:1px 4px;font-size:8pt;height:${STAT_ROW_HT};">${STAT_LABELS[label] || label}</td>
-            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;font-weight:bold;height:${STAT_ROW_HT};">${raw || ''}</td>
-            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;height:${STAT_ROW_HT};">${x5 || ''}</td>
+            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;font-weight:bold;height:${STAT_ROW_HT};">${_esc(String(raw ?? ''))}</td>
+            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;height:${STAT_ROW_HT};">${_esc(String(x5 ?? ''))}</td>
             ${idx === 0 ? `<td rowspan="${statsArr.length}" style="border:1px solid #000;border-top:none;border-right:none;padding:0;font-size:8pt;vertical-align:top;min-width:90px;">
                 ${statsArr.map(() => `<div style="height:${STAT_ROW_HT};border-bottom:1px solid #000;box-sizing:border-box;"></div>`).join('')}
             </td>` : ''}
@@ -350,8 +357,8 @@ function _buildPrintableHTML(data, stateJSON = null) {
   const attrRowsHtml = ['HP', 'WP', 'SAN', 'BP'].map(key => `
         <tr>
             <td style="border:1px solid #000;border-top:none;border-left:none;padding:1px 4px;font-size:8pt;height:21px;">${ATTR_LABELS[key]}</td>
-            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;font-weight:bold;height:21px;">${attributes[key].max || ''}</td>
-            <td style="border:1px solid #000;border-top:none;border-right:none;padding:1px 4px;font-size:9pt;text-align:center;height:21px;">${attributes[key].current || ''}</td>
+            <td style="border:1px solid #000;border-top:none;padding:1px 4px;font-size:9pt;text-align:center;font-weight:bold;height:21px;">${_esc(String(attributes[key].max ?? ''))}</td>
+            <td style="border:1px solid #000;border-top:none;border-right:none;padding:1px 4px;font-size:9pt;text-align:center;height:21px;">${_esc(String(attributes[key].current ?? ''))}</td>
         </tr>`).join('');
 
   // ── Bonds (section 11) ───────────────────────────────────────────────────
@@ -380,7 +387,7 @@ function _buildPrintableHTML(data, stateJSON = null) {
   const psMaxCol = Math.max(psC1End, psC2End - psC1End, psN - psC2End);
   const renderSkillRow = sk => {
     const nm = _esc(sk.name);
-    const val = sk.value !== undefined && sk.value !== '' ? sk.value + '%' : '';
+    const val = sk.value !== undefined && sk.value !== '' ? _int(sk.value) + '%' : '';
     return `<tr>
             <td style="border:1px solid #000;border-top:none;padding:4px 3px;width:13px;height:20px;">${cb()}</td>
             <td style="border:1px solid #000;border-top:none;padding:4px 4px;font-size:8pt;height:20px;">${nm}</td>
@@ -729,7 +736,7 @@ function _buildPrintableHTML(data, stateJSON = null) {
 </div><!-- /page 2 -->
 
 <script>window.addEventListener('load', function() { window.print(); });</script>
-${stateJSON ? `<!-- dg-state-embed --><script id="dg-state-blob" type="application/json">${stateJSON.replace(/<\/script>/gi, '<\\/script>')}</script>` : ''}
+${stateJSON ? `<!-- dg-state-embed --><script id="dg-state-blob" type="application/json">${stateJSON.replace(/</g, '\\u003c')}</script>` : ''}
 </body>
 </html>`;
 }

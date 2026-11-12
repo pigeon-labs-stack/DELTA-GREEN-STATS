@@ -1119,8 +1119,24 @@ function populateCharacterSheetForm() {
     csStatsDiv.innerHTML = '';
     stats.forEach(stat => {
         const statEl = document.getElementById(`${stat}-value`);
-        const value = statEl ? statEl.innerText : '3';
-        csStatsDiv.innerHTML += `<div class="stat-container"><span class="stat-label">${stat}</span><input type="number" id="cs-${stat}" value="${value}" min="3" max="18" class="stat-input"></div>`;
+        // SECURITY: build via DOM APIs with a coerced numeric value — never interpolate
+        // span text (which can arrive from imported JSON/share links) into innerHTML.
+        const parsed = parseInt(statEl ? statEl.innerText : '3', 10);
+        const value = Number.isFinite(parsed) ? Math.min(18, Math.max(3, parsed)) : 3;
+        const container = document.createElement('div');
+        container.className = 'stat-container';
+        const label = document.createElement('span');
+        label.className = 'stat-label';
+        label.textContent = stat;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.id = `cs-${stat}`;
+        input.value = String(value);
+        input.min = '3';
+        input.max = '18';
+        input.className = 'stat-input';
+        container.append(label, input);
+        csStatsDiv.appendChild(container);
     });
 
     // Generate derived attributes (HP, WP, SAN, BP) dynamically for consistent formatting
@@ -1141,8 +1157,24 @@ function populateCharacterSheetForm() {
         ];
         derivedList.forEach(([label, id, defaultVal]) => {
             const existingEl = document.getElementById(id);
-            const currentVal = existingEl ? existingEl.value : defaultVal;
-            csDerivedDiv.innerHTML += `<div class="stat-container" title="${derivedTooltips[label]}"><span class="stat-label">${label}</span><input type="number" id="${id}" value="${currentVal}" min="0" class="stat-input derived-readonly" readonly></div>`;
+            const parsed = existingEl ? parseInt(existingEl.value, 10) : defaultVal;
+            const currentVal = Number.isFinite(parsed) ? Math.max(0, parsed) : defaultVal;
+            // SECURITY: DOM APIs + numeric value; imported states must not reach innerHTML.
+            const container = document.createElement('div');
+            container.className = 'stat-container';
+            container.title = derivedTooltips[label];
+            const labelEl = document.createElement('span');
+            labelEl.className = 'stat-label';
+            labelEl.textContent = label;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = id;
+            input.value = String(currentVal);
+            input.min = '0';
+            input.className = 'stat-input derived-readonly';
+            input.readOnly = true;
+            container.append(labelEl, input);
+            csDerivedDiv.appendChild(container);
         });
     }
 
@@ -3980,7 +4012,7 @@ function lpShowAdvancementResults(rows) {
     const tbody = document.getElementById('lp-adv-tbody');
     tbody.innerHTML = rows.map(r => `
         <tr class="${r.improved ? 'lp-adv-improved' : 'lp-adv-unchanged'}">
-            <td>${r.name}</td>
+            <td>${escapeHtml(r.name)}</td>
             <td>${r.current}%</td>
             <td>${r.roll}</td>
             <td>${r.improved ? `+${r.improve} &rarr; <strong>${r.newVal}%</strong>` : 'No change'}</td>
