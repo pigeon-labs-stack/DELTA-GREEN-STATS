@@ -1478,10 +1478,16 @@ function applyProfessionSkills() {
      * Parses "Skill Name (Specialty)" into base key + specialty.
      * Treats "choose one / choose another" as specialty=null (user must pick).
      */
+    // Display-name → canonical key aliases. 'heavy_machiner' is the deltagreen
+    // system's own (typo) key — keep it; "Heavy Machinery" must not split into
+    // a custom row alongside the predefined slot.
+    const SKILL_KEY_ALIASES = { heavy_machinery: 'heavy_machiner' };
+    const _aliasKey = (k) => SKILL_KEY_ALIASES[k] || k;
+
     function parseSkillName(skillName) {
         const match = skillName.match(/^([^(]+)(?:\s*\(([^)]+)\))?$/);
-        if (!match) return { base: skillName.toLowerCase().replace(/\s+/g, '_'), specialty: null };
-        const basePart = match[1].trim().toLowerCase().replace(/\s+/g, '_');
+        if (!match) return { base: _aliasKey(skillName.toLowerCase().replace(/\s+/g, '_')), specialty: null };
+        const basePart = _aliasKey(match[1].trim().toLowerCase().replace(/\s+/g, '_'));
         const specialtyRaw = match[2] ? match[2].trim() : null;
         const isChoice = specialtyRaw && specialtyRaw.toLowerCase().includes('choose');
         return { base: basePart, specialty: isChoice ? null : specialtyRaw };
@@ -2134,12 +2140,10 @@ function addCustomSkillFromProfession(skillName, skillValue) {
         // Pre-select the specialty if provided
         if (specialty) {
             let found = false;
-            // For military_science, options include "Military Science (X)" format
-            // For other skills, options are just the specialty name like "Electrician"
-            let specialtyToMatch = specialty;
-            if (skillBase === 'military_science') {
-                specialtyToMatch = `Military Science (${specialty})`;
-            }
+            // Options are plain specialty names (e.g. "Land"); tolerate the
+            // full display form "Military Science (Land)" in imported labels.
+            const bare = specialty.replace(/^Military Science\s*\((.*)\)$/i, '$1').trim();
+            const specialtyToMatch = bare;
 
             for (let option of specSelect.options) {
                 if (option.text === specialtyToMatch) {
@@ -2275,13 +2279,16 @@ function buildFoundryJSON() {
         // Skills — use getCompletedSkills() as the single authoritative source
         const skillsObj = {};
         const typedSkillsObj = {};
-        const specialtyGroupMap = { art: 'Art', craft: 'Craft', science: 'Science', pilot: 'Pilot', military_science: 'Military Science' };
+        // Foundry DG typed-skill groups (system lang/en.json DG.TypeSkills.*):
+        // Art, Craft, ForeignLanguage, MilitaryScience, Pilot, Science, Other.
+        const specialtyGroupMap = { art: 'Art', craft: 'Craft', foreign_language: 'ForeignLanguage', science: 'Science', pilot: 'Pilot', military_science: 'MilitaryScience' };
+        const groupLabelFallback = { 'Foreign Language': 'ForeignLanguage', 'Military Science': 'MilitaryScience' };
 
         getCompletedSkills().forEach(skill => {
             if (skill.specialty !== null) {
                 // Specialty skill instance → goes into Foundry's typedSkills
                 const typedSkillId = Date.now().toString() + Math.random().toString(36).substring(2, 11);
-                const group = specialtyGroupMap[skill.key] || skill.label;
+                const group = specialtyGroupMap[skill.key] || groupLabelFallback[skill.label] || 'Other';
                 typedSkillsObj[typedSkillId] = { label: skill.specialty || skill.displayName, group, proficiency: skill.value, failure: false };
             } else {
                 // Base skill → goes into Foundry's skills
@@ -2680,9 +2687,11 @@ function importFoundryJSONToEditor() {
         const customSkillsDiv = document.getElementById('cs-custom-skills');
         if (customSkillsDiv) customSkillsDiv.querySelectorAll('.custom-skill-row').forEach(r => r.remove());
         const typedSkills = sys.typedSkills || {};
+        const groupDisplayName = { MilitaryScience: 'Military Science', ForeignLanguage: 'Foreign Language' };
         Object.values(typedSkills).forEach(ts => {
+            const gname = groupDisplayName[ts.group] || ts.group;
             const label = (ts.group && ts.group !== 'Other')
-                ? `${ts.group} (${ts.label})`
+                ? `${gname} (${ts.label})`
                 : ts.label;
             const prof = ts.proficiency ?? ts.value ?? 0;
             addCustomSkillFromProfession(label, prof);
