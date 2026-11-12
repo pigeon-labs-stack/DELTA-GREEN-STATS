@@ -554,7 +554,7 @@ function renderSpecialtySkills() {
         lpCb.type = 'checkbox';
         lpCb.className = 'lp-skill-check lp-only';
         lpCb.id = `lp-ck-spec-${inst.id}`;
-        lpCb.title = 'Mark skill attempted this session';
+        lpCb.title = 'Mark skills you ATTEMPTED AND FAILED this session — each marked skill gains +1d4 at session end (official rule)';
         nameSpan.appendChild(lpCb);
         controlsDiv.appendChild(nameSpan);
 
@@ -1009,7 +1009,9 @@ function updateDerivedAttributes() {
     const POWv = getStatValue('POW');
     const hp = Math.ceil((STRv + CONv) / 2);
     const wp = POWv;
-    const san = POWv * 5;
+    // AH p.35: SAN can never exceed 99 − Unnatural.
+    const unn = parseInt(document.getElementById('cs-skill-unnatural')?.value, 10) || 0;
+    const san = Math.min(POWv * 5, Math.max(0, 99 - unn));
     const bp = san - POWv;
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     set('cs-hp', hp);
@@ -1222,7 +1224,7 @@ function populateCharacterSheetForm() {
         lpCb.type = 'checkbox';
         lpCb.className = 'lp-skill-check lp-only';
         lpCb.id = `lp-ck-${key}`;
-        lpCb.title = 'Mark skill attempted this session';
+        lpCb.title = 'Mark skills you ATTEMPTED AND FAILED this session — each marked skill gains +1d4 at session end (official rule)';
         nameSpan.appendChild(lpCb);
 
         const pctSpan = document.createElement('span');
@@ -1657,8 +1659,10 @@ function populateBonusSkillDropdowns() {
     const allSkillOptions = []; // [ [value, displayText], ... ]
 
     // Expand CONFIG.SKILLS: specialty skills become individual sub-option entries;
-    // plain skills are added as-is.
+    // plain skills are added as-is. Unnatural is excluded — bonus skill picks may
+    // never include it (AH p.20/27), and it can never be improved at all.
     CONFIG.SKILLS.forEach(([key, label]) => {
+        if (key === 'unnatural') return;
         const subs = SPECIALTY_OPTIONS[key];
         if (subs) {
             subs.forEach(sub => {
@@ -2764,6 +2768,27 @@ window.onload = function () {
 
     observer.observe(document.getElementById('stats'), { childList: true, subtree: true, characterData: true });
 
+    // Creation caps (AH p.15/20): hard cap 99 on every manual skill value input,
+    // soft warn above the 80% creation cap (value kept — valid for advancement),
+    // and recompute derived attributes when Unnatural changes (SAN ≤ 99 − Unnatural).
+    document.addEventListener('change', (e) => {
+        const el = e.target;
+        if (!el || !el.matches) return;
+        const isSkillVal = (el.id && (el.id.startsWith('cs-skill-') || el.id.startsWith('specialty-inst-val-')))
+            || (el.classList && el.classList.contains('custom-skill-value'));
+        if (!isSkillVal) return;
+        const raw = parseInt(el.value, 10);
+        if (!Number.isFinite(raw)) {
+            el.value = 0;
+        } else if (raw < 0 || raw > 99) {
+            el.value = Math.max(0, Math.min(99, raw));
+            window.dgSaveLoad?.showToast?.('Skill values are capped at 99%.');
+        } else if (raw > 80) {
+            window.dgSaveLoad?.showToast?.('Note: 80% is the creation cap — higher values belong to post-creation advancement.');
+        }
+        if (el.id === 'cs-skill-unnatural') updateDerivedAttributes();
+    });
+
     // Bond container event delegation — handles all bond field changes and removals
     const bondsEl = document.getElementById('cs-bonds');
     if (bondsEl) {
@@ -3072,7 +3097,7 @@ function lpSyncBar() {
     const str = getStat('STR'), con = getStat('CON'), pow = getStat('POW');
     const maxHp = (str || con) ? Math.ceil((str + con) / 2) : hp;
     const maxWp = pow || wp;
-    const maxSan = pow ? pow * 5 : san;
+    const maxSan = pow ? Math.min(pow * 5, Math.max(0, 99 - (parseInt(document.getElementById('cs-skill-unnatural')?.value, 10) || 0))) : san;
     const maxBp = pow ? pow * 4 : bp;
 
     // ── Tracker bar: current values ────────────────────────────────
@@ -3503,7 +3528,8 @@ function buildLpSheet() {
                 <div style="display:flex;gap:6px;">
                     <button type="button" class="lp-btn-sm" onclick="addLpSkill()" title="Add a custom skill row to this sheet. Use for any skill your agent has that isn't already listed.">+ ADD SKILL</button>
                     <button type="button" class="lp-btn-sm" onclick="lpClearSkillChecks()" title="Uncheck all session-failure checkboxes. Do this at the start of a new session once improvement rolls are done.">CLEAR SESSION MARKS</button>
-                    <button type="button" class="lp-btn-sm lp-btn-advance" onclick="lpRollAdvancement()" title="Do this at the end of a session. Rolls for skill improvement on every skill marked as failed. Skills that roll higher than their current value improve by 1d4. Results are shown in a summary before applying.">ROLL IMPROVEMENTS</button>
+                    <label class="lp-btn-sm" title="House rule (Call of Cthulhu style): only skills that roll OVER their current value improve. Off = official rule: every marked skill gains 1d4." style="cursor:pointer;"><input type="checkbox" id="lp-adv-gate" ${localStorage.getItem('dg_lp_gate') ? 'checked' : ''} onchange="localStorage.setItem('dg_lp_gate', this.checked ? '1' : '')"> d100 gate</label>
+                    <button type="button" class="lp-btn-sm lp-btn-advance" onclick="lpRollAdvancement()" title="Do this at the end of a session. Official rule: every skill marked as attempted and FAILED improves by 1d4 (max 99%; Unnatural excluded). The d100 gate checkbox enables the house-rule roll. Results are shown in a summary before applying.">ROLL IMPROVEMENTS</button>
                 </div>
             </div>
         </div>
@@ -3978,6 +4004,10 @@ let _lpAdvancementPending = null;
  * Shows a confirmation modal before applying any changes.
  */
 function lpRollAdvancement() {
+    // Official (AH p.29 + 3rd-printing errata): at session end EVERY checked skill
+    // gains +1d4 — no roll gate. The d100 > current gate is a Call-of-Cthulhu
+    // house rule, kept behind the "d100 gate" toggle on the LP bar.
+    const houseGate = !!document.getElementById('lp-adv-gate')?.checked;
     const rows = [];
     document.querySelectorAll('#lp-sheet .lp-skill-table tbody tr').forEach(tr => {
         const cb = tr.querySelector('.lp-skill-cb');
@@ -3989,8 +4019,11 @@ function lpRollAdvancement() {
             ? (nameInp.value.trim() || '(custom)')
             : (nameTd?.textContent?.trim() || 'Unknown');
         const current = parseInt(valInp?.value) || 0;
-        const roll = Math.floor(Math.random() * 100) + 1;
-        const improved = roll > current;
+        // Unnatural can never be improved by experience checks.
+        const isUnnatural = /unnatural/i.test(valInp?.dataset?.skillSrc || '') || /^unnatural$/i.test(name);
+        const eligible = current >= 1 && !isUnnatural;
+        const roll = houseGate ? (Math.floor(Math.random() * 100) + 1) : null;
+        const improved = eligible && (!houseGate || roll > current);
         const improve = improved ? (Math.floor(Math.random() * 4) + 1) : 0;
         rows.push({
             name,
@@ -4042,12 +4075,17 @@ function lpShowAdvancementResults(rows) {
     }
 
     const tbody = document.getElementById('lp-adv-tbody');
+    const gated = !!document.getElementById('lp-adv-gate')?.checked;
+    const ruleEl = modal.querySelector('.lp-adv-rule');
+    if (ruleEl) ruleEl.textContent = gated
+        ? 'House rule: Roll > current % = improve by 1d4 (max 99%)'
+        : 'Official rule: every marked skill improves by 1d4 (max 99%). Unnatural never improves.';
     tbody.innerHTML = rows.map(r => `
         <tr class="${r.improved ? 'lp-adv-improved' : 'lp-adv-unchanged'}">
             <td>${escapeHtml(r.name)}</td>
             <td>${r.current}%</td>
-            <td>${r.roll}</td>
-            <td>${r.improved ? `+${r.improve} &rarr; <strong>${r.newVal}%</strong>` : 'No change'}</td>
+            <td>${r.roll ?? '—'}</td>
+            <td>${r.improved ? `+${r.improve} &rarr; <strong>${r.newVal}%</strong>` : (r.roll === null && /unnatural/i.test(r.name) ? 'Unnatural — excluded' : 'No change')}</td>
         </tr>`).join('');
 
     const improved = rows.filter(r => r.improved).length;

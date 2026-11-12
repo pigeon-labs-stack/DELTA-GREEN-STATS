@@ -132,7 +132,7 @@ The wizard is **optional** — experienced players can skip it and fill in the f
 |---|---|
 | Anthropologist or Historian | 4 |
 | Computer Scientist or Engineer | 3 |
-| Criminal | 4 |
+| Criminal | 3 |
 | Federal Agent | 3 |
 | Firefighter | 3 |
 | Foreign Service Officer | 3 |
@@ -213,12 +213,12 @@ A floating, draggable dice panel available at all times.
 - Animated wireframe die face with a spin-and-land CSS animation
 - **Percentile integration:** click any skill value on the character sheet to instantly roll D% against it — the skill name and target % auto-populate
 - Result tiers per Agent's Handbook rules:
-  - `01` → **Critical Success**
-  - Matching double (e.g. 33) within target → **Critical Success**
-  - ≤ target → **Success**
-  - > target → **Failure**
-  - Matching double at or above target → **Fumble**
-  - `100` → **Fumble**
+  - `01` → **Critical Success** (always)
+  - `00` → **Fumble** (always — even against a high target)
+  - Any matching double (e.g. 33) rolled on a success → **Critical Success**
+  - Roll ≤ target → **Success**
+  - Roll > target → **Failure**
+  - Any matching double rolled on a failure → **Fumble**
 
 #### Custom Dice Expressions
 Type a dice expression into the input field and press **ROLL** or **Enter** to run it without leaving the current die button selection.

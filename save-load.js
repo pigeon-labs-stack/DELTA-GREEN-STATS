@@ -980,7 +980,7 @@
     /* =========================================================================
        PUBLIC API
     ========================================================================= */
-    window.dgSaveLoad = { save, loadLocal, share, clearSave, clearSheet, downloadSheet, uploadSheet, collectState, applyState, importFromSheet };
+    window.dgSaveLoad = { save, loadLocal, share, clearSave, clearSheet, downloadSheet, uploadSheet, collectState, applyState, importFromSheet, showToast };
 
     /* =========================================================================
        INIT — run after scripts.js window.onload (and its 50 ms inner timer)
