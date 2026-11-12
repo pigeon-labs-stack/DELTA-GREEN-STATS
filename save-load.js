@@ -562,6 +562,9 @@
             if (state.appliedBonuses && typeof appState !== 'undefined') {
                 appState.appliedBonuses = state.appliedBonuses;
             }
+
+            // L1: state fully landed (Phase 2 complete) — release the wizard.
+            if (window.__resolveRestoreDone) window.__resolveRestoreDone();
         }, 100);
     }
 
@@ -1020,12 +1023,16 @@
     window.dgSaveLoad = { save, loadLocal, share, clearSave, clearSheet, downloadSheet, uploadSheet, collectState, applyState, importFromSheet, showToast };
 
     /* =========================================================================
-       INIT — run after scripts.js window.onload (and its 50 ms inner timer)
+       INIT — L1: chain on scripts.js coreReady promise (no timer guessing);
+       resolve restoreDone when Phase 2 lands state, so the wizard activates
+       only after restore has finished.
     ========================================================================= */
+    window.__dgRestoreDone = new Promise(resolve => { window.__resolveRestoreDone = resolve; });
     window.addEventListener('load', () => {
-        setTimeout(() => {
-            if (!loadFromURL()) loadLocal();
-        }, 200);
+        Promise.resolve(window.__dgCoreReady).then(() => {
+            const applied = loadFromURL() || loadLocal();
+            if (!applied && window.__resolveRestoreDone) window.__resolveRestoreDone();
+        });
     });
 
     // Flush save immediately when the page is about to unload (tab close, refresh, navigate).

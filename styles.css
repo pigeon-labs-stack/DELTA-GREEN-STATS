@@ -4566,6 +4566,11 @@ input[type="checkbox"]:checked+label {
     color: #c0392b;
 }
 
+/* L15: 'NA' expense (lethal-only items) had no class — rendered unstyled */
+.eq-expense-na {
+    color: #8a8a8a;
+}
+
 .eq-add-btn {
     flex-shrink: 0;
     width: 26px;
@@ -5536,26 +5541,8 @@ input[type="checkbox"]:checked+label {
     display: block !important;
 }
 
-/* ── Page title ──────────────────────────────────────────────────── */
-.theme-field-doc .page-title {
-    color: #1a1408;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: 900;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    text-shadow: none;
-    -webkit-text-fill-color: #1a1408;
-}
-
-.theme-field-doc .site-intro {
-    color: #3a3020;
-    font-size: 0.78rem;
-}
-
-.theme-field-doc .site-intro strong {
-    color: #1a1408;
-    -webkit-text-fill-color: #1a1408;
-}
+/* L8: .page-title/.site-intro are display:none in this theme (hidden above) —
+   the color rules that used to follow here were dead (never rendered). */
 
 /* ── Advanced options ────────────────────────────────────────────── */
 .theme-field-doc #advanced-options-details summary {

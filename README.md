@@ -167,7 +167,7 @@ Specialty skills (Art, Craft, Military Science, Pilot, Science) use dropdowns wi
 
 | Skill | Example Specialties |
 |---|---|
-| **Art** | Photography, Painting, Sculpting, Acting, Creative Writing, Guitar, Singing… |
+| **Art** | Acting, Creative Writing, Forgery, Illustration, Journalism, Painting, Photography, Scriptwriting… |
 | **Craft** | Mechanic, Electrician, Gunsmith, Locksmith, Carpenter, Microelectronics… |
 | **Military Science** | Land, Air, Sea, Special Operations |
 | **Pilot** | Airplane, Helicopter, Drone, Small Boat, Ship, Jet Aircraft, Space Shuttle |

@@ -504,7 +504,7 @@ ADAPTING TO THE UNNATURAL: There is no adapting to the Unnatural. Every encounte
     bio_education:
         `Education and Occupational History\n\nMost Agents are in professions that require higher education, a bachelor's degree or a graduate degree. Describe an education that fits your Agent's skills.`,
     bio_motivations:
-        `Motivations and Mental Disorders\n\nYour Agent starts with five motivations: personal beliefs, drives, or obsessions. Motivations aren't as powerful as Bonds, so they don't have scores. Bring them up in play to show what motivates and supports your Agent and makes life worth living.\n\nEach time SAN hits the Breaking Point, replace a motivation with your Agent's new mental disorder.`,
+        `Motivations and Mental Disorders\n\nYou may define up to five motivations: personal beliefs, drives, or obsessions. Motivations aren't as powerful as Bonds, so they don't have scores. Bring them up in play to show what motivates and supports your Agent and makes life worth living.\n\nEach time SAN hits the Breaking Point, replace a motivation with your Agent's new mental disorder.`,
     bio_personal_details:
         `Personal Details and Notes\n\nDon't overlook the intangibles that make an Agent memorable. What's something admirable about your Agent? What's something that people often dislike about your Agent? What brought your Agent to Delta Green? Why does Delta Green trust your Agent? Why does your Agent help Delta Green despite the terrible risks?`
 };
@@ -1542,11 +1542,23 @@ function applyProfessionSkills() {
     profession.requiredSkills.forEach(skill => applySkill(skill.name, skill.value));
 
     // Apply selected optional skills
+    // L12: AH p.26 — choose optional skills "you don't already have".
+    // Applying a duplicate would overwrite the required value (e.g.
+    // anthropologist's optional Anthropology 40 stomping required 50).
+    const requiredSkillNames = new Set(profession.requiredSkills.map(s => String(s.name).trim().toLowerCase()));
+    const dupOptional = [];
     document.querySelectorAll('.profession-optional-skill:checked').forEach(checkbox => {
         const skillName = checkbox.getAttribute('data-skill-name');
         const skillValue = parseInt(checkbox.getAttribute('data-skill-value'));
+        if (requiredSkillNames.has(String(skillName).trim().toLowerCase())) {
+            dupOptional.push(skillName);
+            return;
+        }
         applySkill(skillName, skillValue);
     });
+    if (dupOptional.length) {
+        window.dgSaveLoad?.showToast?.(`Skipped optional ${dupOptional.join(', ')} — your profession already grants it (choose a skill you don't already have)`);
+    }
 
     // Re-render the specialty section once all instances have been created
     renderSpecialtySkills();
@@ -2459,7 +2471,14 @@ function buildFoundryJSON() {
             console.warn('Failed to parse custom prototype token JSON:', e);
             prototypeToken = {};
         }
-        const finalProtoToken = Object.assign(defaultProtoToken, prototypeToken);
+        // L2: JSON.parse makes "__proto__" an OWN enumerable key, and
+        // Object.assign routes it through the [[Prototype]] SETTER — a pasted
+        // token could reparent defaultProtoToken. Copy plain keys only.
+        const finalProtoToken = { ...defaultProtoToken };
+        for (const key of Object.keys(prototypeToken)) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            finalProtoToken[key] = prototypeToken[key];
+        }
 
         // Get sanity adaptations from checkboxes
         const violenceAdaptations = {
@@ -2811,6 +2830,11 @@ const observer = new MutationObserver(() => {
 // Expose so save-load.js can pause the observer during state restore
 window._dgStatsObserver = observer;
 
+// L1: deterministic init handoff — scripts.js resolves coreReady after its
+// 50 ms DOM-settle pass; save-load resolves restoreDone after Phase 2 has
+// landed the saved/shared state. Wizard activation waits on both.
+window.__dgCoreReady = new Promise(resolve => { window.__resolveCoreReady = resolve; });
+
 window.onload = function () {
     generateStatContainers();
     resetStats();
@@ -2821,6 +2845,9 @@ window.onload = function () {
     setTimeout(() => {
         resetStats();
         populateCharacterSheetForm();
+        // L1: signal core init done — save-load and wizard chain off this
+        // promise instead of guessing with 200 ms / 400 ms timers.
+        if (window.__resolveCoreReady) window.__resolveCoreReady();
     }, 50);
 
     observer.observe(document.getElementById('stats'), { childList: true, subtree: true, characterData: true });
@@ -4369,7 +4396,15 @@ function generateRandomBond() {
     // Colour and border are handled by CSS var(--primary-color) — no inline override needed.
 
     if (availableBonds.length > 0) {
-        const randomBond = availableBonds[Math.floor(Math.random() * availableBonds.length)];
+        // L9: bonds.js pools contain duplicate display names (6 collisions,
+        // e.g. Derek Wilson twice) — never draw a name already on the sheet
+        // or the exact bond drawn last time.
+        const onSheetNames = new Set((window.bondsOnSheet || []).map(b => b && b.name));
+        const last = appState.currentBond;
+        let pool = availableBonds.filter(b => b && !onSheetNames.has(b.name));
+        if (last) pool = pool.filter(b => !(b.name === last.name && b.description === last.description));
+        if (pool.length === 0) pool = availableBonds;
+        const randomBond = pool[Math.floor(Math.random() * pool.length)];
         // Store the original bond in appState for later parsing
         appState.currentBond = randomBond;
 

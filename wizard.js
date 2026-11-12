@@ -1,6 +1,7 @@
 /* ============================================================================
-   WIZARD THEME — Step-by-step guided character creation
-   Activated when theme === 'wizard'. Hooked from applyTheme() in scripts.js.
+   WIZARD — Step-by-step guided character creation
+   Activated from setTheme() in scripts.js when the user opens the wizard
+   overlay (there is no separate 'wizard' theme).
    Exposes window.dgWizard = { activate, deactivate, goTo }
    ============================================================================ */
 (function () {
@@ -537,14 +538,17 @@
 
     /* ── Auto-restore on page load ────────────────────────────────────────── */
     // If a saved step exists the user was mid-wizard before the refresh — reopen.
-    // IMPORTANT: We must wait until after save-load.js has finished restoring state
-    // (theme, skills, etc.) before activating the wizard. save-load uses a 200ms
-    // setTimeout inside its 'load' listener, so we wait 400ms to be safe.
+    // IMPORTANT: we must wait until after save-load.js has finished restoring
+    // state (theme, skills, etc.) before activating the wizard. L1: activation
+    // now chains on the explicit coreReady → restoreDone promises, with a
+    // 1.5 s watchdog so a broken promise can never strand the wizard.
     if (localStorage.getItem('dg-wiz-step') !== null) {
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
         window.addEventListener('load', function () {
-            setTimeout(function () {
+            const restore = Promise.resolve(window.__dgCoreReady).then(() => window.__dgRestoreDone);
+            const watchdog = new Promise(r => setTimeout(r, 1500));
+            Promise.race([restore, watchdog]).then(function () {
                 activate();
                 requestAnimationFrame(function () {
                     requestAnimationFrame(function () {
@@ -552,7 +556,7 @@
                         if (stepBar) window.scrollTo({ top: stepBar.getBoundingClientRect().top + window.scrollY, behavior: 'auto' });
                     });
                 });
-            }, 400);
+            });
         });
     }
 })();
