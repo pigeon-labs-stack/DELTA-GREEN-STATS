@@ -20,6 +20,10 @@
 
     // Suppress auto-save while we are restoring state
     let _restoring = false;
+    // F8: after a cancelled import at load time, autosave stays OFF until an
+    // explicit destructive action (clear sheet) — the first stray keystroke
+    // used to overwrite the very save the cancel toast promised to protect.
+    let _cancelHold = false;
 
     // Suppress auto-save after a cancelled/invalid share-link import: the
     // beforeunload flush must not overwrite the local character with the
@@ -223,8 +227,9 @@
 
         // ── Phase 1 (synchronous): things that don't depend on form re-render ──
 
-        // Theme
-        if (state.theme) {
+        // Theme (F15: whitelist on import — an invalid theme used to blank the
+        // select, apply a bare 'theme-' class and persist dg_theme='')
+        if (state.theme && THEMES.includes(state.theme)) {
             const sel = document.getElementById('cs-theme-select');
             if (sel) { sel.value = state.theme; sel.dispatchEvent(new Event('change')); }
         }
@@ -286,7 +291,10 @@
         }
 
         // ── Phase 2 (100 ms): override everything the observer may have reset ──
+        // F1: any throw inside this body used to strand _restoring=true, which
+        // silently disables save()/beforeunload for the whole session.
         setTimeout(() => {
+          try {
             // CS stat inputs
             if (state.csStats) {
                 STATS.forEach(stat => {
@@ -439,7 +447,7 @@
                 });
             }
 
-            _restoring = false;
+            _restoring = false; // moved release also runs in finally (idempotent)
 
             // Auto-expand any textarea that was restored with content
             if (typeof lpAutoExpand === 'function') {
@@ -565,6 +573,14 @@
 
             // L1: state fully landed (Phase 2 complete) — release the wizard.
             if (window.__resolveRestoreDone) window.__resolveRestoreDone();
+          } catch (e) {
+            console.warn('[DG restore Phase 2]', e);
+          } finally {
+            // F1: _restoring must NEVER stay true — a throw here used to
+            // silently disable autosave for the entire page session.
+            _restoring = false;
+            if (window.__resolveRestoreDone) window.__resolveRestoreDone();
+          }
         }, 100);
     }
 
@@ -572,7 +588,7 @@
        PERSISTENCE
     ========================================================================= */
     function save() {
-        if (_restoring || _suppressAutoSave) return;
+        if (_restoring || _suppressAutoSave || _cancelHold) return;
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState()));
             _flashSaved();
@@ -616,6 +632,7 @@
 
     function clearSave() {
         if (!confirm('Clear all saved character data? This cannot be undone.')) return;
+        _cancelHold = false; // explicit fresh start re-enables persistence
         _clearing = true;
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem('dg-equipment-loadout');
@@ -625,6 +642,7 @@
 
     function clearSheet() {
         if (!confirm('Clear the entire sheet? All values will be reset. This cannot be undone.')) return;
+        _cancelHold = false; // explicit fresh start re-enables persistence
 
         // Wipe localStorage
         localStorage.removeItem(STORAGE_KEY);
@@ -770,19 +788,36 @@
                 bp: _clampInt(out.derived.bp, 0, 0, 999),
             };
         }
+        // F1/F2: every array must be an array of plain objects — hostile share
+        // payloads (null/primitive entries) used to throw inside validateState
+        // or Phase 2 and silently kill boot restore / autosave.
+        const _objs = (a) => Array.isArray(a) ? a.filter(e => e && typeof e === 'object') : a;
+        if (Array.isArray(out.customSkills)) {
+            out.customSkills = _objs(out.customSkills)
+                .filter(cs => typeof cs.name === 'string') // F1: name.match() in Phase 2 requires a string
+                .map(cs => { cs.value = _clampInt(cs.value, 0, 0, 999); return cs; });
+        }
+        if (Array.isArray(out.specialtyInstances)) {
+            out.specialtyInstances = _objs(out.specialtyInstances)
+                // L1: keys reach skillsObj[key]=… — block prototype-setter keys.
+                .filter(si => typeof si.key === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,40}$/.test(si.key) && si.key !== 'constructor' && si.key !== 'prototype' && si.key !== '__proto__')
+                .map(si => { si.value = _clampInt(si.value, 0, 0, 999); si.specialty = si.specialty == null || typeof si.specialty === 'string' ? si.specialty : String(si.specialty); return si; });
+        }
+        if (Array.isArray(out.lpCustomSkills)) out.lpCustomSkills = _objs(out.lpCustomSkills).map(sk => { sk.val = String(sk.val ?? '').replace(/[^\d.%]/g, ''); return sk; });
+        if (Array.isArray(out.lpWeapons)) out.lpWeapons = _objs(out.lpWeapons).map(w => { w.skillPct = String(w.skillPct ?? '').replace(/[^\d.%]/g, ''); return w; });
+        if (Array.isArray(out.bonds)) out.bonds = _objs(out.bonds).map(b => { if (b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); return b; });
         if (out.skills && typeof out.skills === 'object') {
             const sk = {};
-            Object.keys(out.skills).forEach(k => { sk[k] = _clampInt(out.skills[k], 0, 0, 999); });
+            Object.keys(out.skills).forEach(k => {
+                if (k === '__proto__' || k === 'constructor' || k === 'prototype') return; // L1/L2 class
+                sk[k] = _clampInt(out.skills[k], 0, 0, 999);
+            });
             out.skills = sk;
         }
-        if (Array.isArray(out.customSkills)) out.customSkills.forEach(cs => { cs.value = _clampInt(cs.value, 0, 0, 999); });
-        if (Array.isArray(out.specialtyInstances)) out.specialtyInstances.forEach(si => { si.value = _clampInt(si.value, 0, 0, 999); });
-        if (Array.isArray(out.lpCustomSkills)) out.lpCustomSkills.forEach(sk => { sk.val = String(sk.val ?? '').replace(/[^\d.%]/g, ''); });
-        if (Array.isArray(out.lpWeapons)) out.lpWeapons.forEach(w => { w.skillPct = String(w.skillPct ?? '').replace(/[^\d.%]/g, ''); });
-        if (Array.isArray(out.bonds)) out.bonds.forEach(b => { if (b && b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); });
         if (out.appliedBonuses && typeof out.appliedBonuses === 'object') {
             const ab = {};
             Object.keys(out.appliedBonuses).forEach(k => {
+                if (k === '__proto__' || k === 'constructor' || k === 'prototype') return; // L2: ab[k] hits the setter
                 const v = out.appliedBonuses[k];
                 if (v && typeof v === 'object') {
                     // { added, base } baseline shape (resetBonusSkills restores base)
@@ -817,10 +852,12 @@
         if (_hasLocalCharacter() &&
             !confirm(`Replace the current character with the ${sourceLabel}?\n\nCancel keeps your current character.`)) {
             _suppressAutoSave = true;
-            showToast('Import cancelled — your saved character was kept. Reload the page to open it.');
+            _cancelHold = true;
+            showToast('Import cancelled — autosave is paused so your saved character stays intact. Reload the page to reopen it, or clear the sheet to start fresh.');
             return false;
         }
         _suppressAutoSave = false;
+        _cancelHold = false;
         applyState(clean);
         return true;
     }
@@ -915,6 +952,7 @@
     let _syncDebounce;
     function _onUserChange(e) {
         if (_restoring) return;
+        if (_cancelHold) return; // F8: edits after a load-time cancel are not persisted
         _suppressAutoSave = false; // any real user edit re-enables persistence
         clearTimeout(_debounce);
         _debounce = setTimeout(save, 1500);
@@ -1029,10 +1067,20 @@
     ========================================================================= */
     window.__dgRestoreDone = new Promise(resolve => { window.__resolveRestoreDone = resolve; });
     window.addEventListener('load', () => {
-        Promise.resolve(window.__dgCoreReady).then(() => {
-            const applied = loadFromURL() || loadLocal();
-            if (!applied && window.__resolveRestoreDone) window.__resolveRestoreDone();
-        });
+        const boot = () => {
+            // F2: a throwing payload must never abort boot — fall back to the
+            // local save and always release the wizard's restore promise.
+            try {
+                const applied = loadFromURL() || loadLocal();
+                if (!applied && window.__resolveRestoreDone) window.__resolveRestoreDone();
+            } catch (e) {
+                console.warn('[DG boot restore]', e);
+                try { loadLocal(); } catch (e2) { console.warn('[DG boot local]', e2); }
+                if (window.__resolveRestoreDone) window.__resolveRestoreDone();
+            }
+        };
+        // F17: watchdog — if coreReady never resolves (init throw), boot anyway.
+        Promise.race([Promise.resolve(window.__dgCoreReady), new Promise(r => setTimeout(r, 2000))]).then(boot);
     });
 
     // Flush save immediately when the page is about to unload (tab close, refresh, navigate).
