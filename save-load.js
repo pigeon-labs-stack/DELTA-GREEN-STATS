@@ -890,6 +890,8 @@
         if (!toast) {
             toast = document.createElement('div');
             toast.id = 'dg-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             document.body.appendChild(toast);
         }
         toast.textContent = msg;

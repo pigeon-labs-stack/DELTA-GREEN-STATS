@@ -566,6 +566,7 @@ function renderSpecialtySkills() {
         lpCb.id = `lp-ck-spec-${inst.id}`;
         lpCb.title = 'Mark skills you ATTEMPTED AND FAILED this session — each marked skill gains +1d4 at session end (official rule)';
         nameSpan.appendChild(lpCb);
+        lpCb.setAttribute('aria-label', (nameSpan.textContent || '').replace(/\s+/g, ' ').trim() + ' — attempted and failed this session');
         controlsDiv.appendChild(nameSpan);
 
         if (!inst.key) {
@@ -1143,6 +1144,7 @@ function populateCharacterSheetForm() {
         const input = document.createElement('input');
         input.type = 'number';
         input.id = `cs-${stat}`;
+        input.setAttribute('aria-label', ({ STR: 'Strength', CON: 'Constitution', DEX: 'Dexterity', INT: 'Intelligence', POW: 'Power', CHA: 'Charisma' })[stat] || stat);
         input.value = String(value);
         input.min = '3';
         input.max = '18';
@@ -1181,6 +1183,7 @@ function populateCharacterSheetForm() {
             const input = document.createElement('input');
             input.type = 'number';
             input.id = id;
+            input.setAttribute('aria-label', { HP: 'Current hit points', WP: 'Current willpower points', SAN: 'Current sanity', BP: 'Current breaking point' }[label] || label);
             input.value = String(currentVal);
             input.min = '0';
             input.className = 'stat-input derived-readonly';
@@ -1224,6 +1227,7 @@ function populateCharacterSheetForm() {
         const inputEl = document.createElement('input');
         inputEl.type = 'number';
         inputEl.id = `cs-skill-${key}`;
+        inputEl.setAttribute('aria-label', label + ' skill value');
         // Prefer any previously-set value so re-renders don't clobber applied profession/bonus values.
         inputEl.value = (key in existingSkillValues) ? existingSkillValues[key] : def;
         inputEl.min = 0;
@@ -1236,6 +1240,7 @@ function populateCharacterSheetForm() {
         lpCb.id = `lp-ck-${key}`;
         lpCb.title = 'Mark skills you ATTEMPTED AND FAILED this session — each marked skill gains +1d4 at session end (official rule)';
         nameSpan.appendChild(lpCb);
+        lpCb.setAttribute('aria-label', (nameSpan.textContent || '').replace(/\s+/g, ' ').trim() + ' — attempted and failed this session');
 
         const pctSpan = document.createElement('span');
         pctSpan.className = 'cs-skill-pct';
@@ -1438,8 +1443,6 @@ function selectProfession(professionKey) {
     if (applyRow) applyRow.style.display = profession.requiredSkills.length > 0 ? 'flex' : 'none';
     // Reset button/reminder state for the newly selected profession
     if (applyBtn) { applyBtn.classList.remove('apply-profession-done'); applyBtn.style.display = ''; applyBtn.textContent = 'Apply Professional Skills'; }
-    const badge = document.getElementById('apply-profession-done-badge');
-    if (badge) badge.style.display = 'none';
     const reminder = document.getElementById('reminder-apply-profession');
     if (reminder) reminder.style.display = '';
 }
@@ -1541,6 +1544,7 @@ function applyProfessionSkills() {
         if (reminder) reminder.style.display = 'none';
         const btn = document.getElementById('apply-profession-button');
         if (btn) { btn.classList.add('apply-profession-done'); btn.textContent = 'Professional Skills Applied'; }
+        window.dgSaveLoad?.showToast?.('Professional skills applied');
     } else {
         alert('No skills were applied. Make sure the skills exist in the character sheet.');
     }
@@ -2033,8 +2037,6 @@ function resetProfessionSkills() {
     clearProfessionSkills();
     const btn = document.getElementById('apply-profession-button');
     if (btn) { btn.classList.remove('apply-profession-done'); btn.style.display = ''; btn.textContent = 'Apply Professional Skills'; }
-    const badge = document.getElementById('apply-profession-done-badge');
-    if (badge) badge.style.display = 'none';
     const reminder = document.getElementById('reminder-apply-profession');
     if (reminder) reminder.style.display = '';
     if (typeof syncLpFromForm === 'function') syncLpFromForm();
@@ -4014,6 +4016,7 @@ function lpClearSkillChecks() {
 
 // Stores the pending advancement results between roll and confirm
 let _lpAdvancementPending = null;
+let _lpAdvPrevFocus = null;
 
 /**
  * Rolls 1d100 for each checked (failed) skill.
@@ -4070,7 +4073,7 @@ function lpShowAdvancementResults(rows) {
         modal.id = 'lp-adv-modal';
         modal.innerHTML = `
             <div class="lp-adv-dialog">
-                <div class="lp-adv-title">END-OF-SESSION ADVANCEMENT</div>
+                <div class="lp-adv-title" id="lp-adv-title">END-OF-SESSION ADVANCEMENT</div>
                 <p class="lp-adv-rule">Roll &gt; current % = improve by 1d4 (max 99%)</p>
                 <table class="lp-adv-table">
                     <thead><tr>
@@ -4089,6 +4092,22 @@ function lpShowAdvancementResults(rows) {
             </div>`;
         document.body.appendChild(modal);
         modal.addEventListener('click', e => { if (e.target === modal) lpDismissAdvancement(); });
+        // Dialog semantics + keyboard: role/aria, Escape closes, Tab is trapped
+        // inside the modal (WCAG 2.1.1 / 4.1.2 — the modal used to be a plain
+        // div that keyboard users tabbed straight through into the page).
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'lp-adv-title');
+        modal.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { e.preventDefault(); lpDismissAdvancement(); return; }
+            if (e.key !== 'Tab') return;
+            const focusables = [...modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+                .filter(el => el.offsetParent !== null);
+            if (!focusables.length) return;
+            const first = focusables[0], last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
     }
 
     const tbody = document.getElementById('lp-adv-tbody');
@@ -4110,6 +4129,10 @@ function lpShowAdvancementResults(rows) {
         `${improved} of ${rows.length} skill${rows.length !== 1 ? 's' : ''} improved`;
 
     modal.style.display = 'flex';
+    // Focus management: remember the trigger, move focus into the dialog
+    if (document.activeElement && document.activeElement !== document.body) _lpAdvPrevFocus = document.activeElement;
+    const focusBtn = modal.querySelector('.lp-btn-advance') || modal.querySelector('button');
+    if (focusBtn) focusBtn.focus();
     document.body.style.overflow = 'hidden';
 }
 
@@ -4132,6 +4155,9 @@ function lpDismissAdvancement() {
     if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
     _lpAdvancementPending = null;
+    // Return focus to the trigger (WCAG 2.4.3 focus order)
+    if (_lpAdvPrevFocus && document.contains(_lpAdvPrevFocus)) _lpAdvPrevFocus.focus();
+    _lpAdvPrevFocus = null;
 }
 
 /**

@@ -275,7 +275,7 @@
         if (!panel) return;
         const collapsed = panel.classList.toggle('dr-collapsed');
         if (body) body.style.display = collapsed ? 'none' : '';
-        if (arrow) arrow.textContent = collapsed ? '▲' : '▼';
+        if (arrow) { arrow.textContent = collapsed ? '▲' : '▼'; arrow.setAttribute('aria-expanded', String(!collapsed)); }
     }
 
     /* ── Drag ─────────────────────────────────────────────────────── */
@@ -323,7 +323,7 @@
 <div id="dr-handle" title="Drag to move">
   <span id="dr-title">&#9861;&nbsp;DICE ROLLER</span>
   <div class="dr-handle-controls">
-    <button type="button" id="dr-arrow" title="Collapse / expand">▼</button>
+    <button type="button" id="dr-arrow" title="Collapse / expand" aria-label="Collapse or expand the dice roller" aria-expanded="true" aria-controls="dr-body">▼</button>
   </div>
 </div>
 <div id="dr-body">
@@ -347,14 +347,14 @@
       </div>
     </div>
   </div>
-  <div id="dr-result-box" class="dr-result-box">
+  <div id="dr-result-box" class="dr-result-box" role="status" aria-live="polite">
     <div id="dr-target-display"></div>
     <div id="dr-result-label"></div>
   </div>
   <div id="dr-breakdown"></div>
   <div id="dr-skill-name"></div>
   <div id="dr-manual-row">
-    <input type="text" id="dr-manual-target" placeholder="target %, 2d6+3" title="Enter a target % to roll D% against, or a dice expression like 2d6+3 or d4-1">
+    <input type="text" id="dr-manual-target" placeholder="target %, 2d6+3" aria-label="Manual roll target percentage or dice expression" title="Enter a target % to roll D% against, or a dice expression like 2d6+3 or d4-1">
     <button type="button" id="dr-roll-btn" title="Roll the selected die">ROLL</button>
   </div>
   <div id="dr-hint">Click a skill value to roll D% · type 2d6+3 for custom rolls</div>
@@ -397,6 +397,7 @@
         panel.classList.add('dr-collapsed');
         _e.body.style.display = 'none';
         _e.arrow.textContent = '▲';
+        _e.arrow.setAttribute('aria-expanded', 'false');
         initDrag($('dr-handle'), panel);
     }
 

@@ -268,8 +268,8 @@
         container.innerHTML =
             '<div class="eq-controls">' +
             '<input type="text" id="eq-search" class="eq-search-input" placeholder="Search equipment\u2026"' +
-            ' autocomplete="off" spellcheck="false" />' +
-            '<select id="eq-cat-select" class="eq-cat-select">' +
+            ' aria-label="Search equipment list" autocomplete="off" spellcheck="false" />' +
+            '<select id="eq-cat-select" class="eq-cat-select" aria-label="Equipment category filter">' +
             catOptions +
             '</select>' +
             '</div>' +
@@ -288,7 +288,7 @@
             '<div id="eq-loadout-list" class="eq-scrolllist"></div>' +
             '<div class="eq-custom-add-row">' +
             '<input type="text" id="eq-custom-name" class="eq-custom-name-input"' +
-            ' placeholder="Add custom item\u2026" autocomplete="off" spellcheck="false" />' +
+            ' placeholder="Add custom item\u2026" aria-label="Custom equipment name" autocomplete="off" spellcheck="false" />' +
             '<button type="button" id="eq-custom-add-btn" class="eq-custom-add-btn">+ Add</button>' +
             '</div>' +
             '</div>' +

@@ -216,8 +216,8 @@
                         </div>
                         <div class="lp-tracker-item lp-track-dice">
                             <button type="button" class="lp-tracker-btn lp-dice-quick" onclick="lpQuickRoll()"
-                                title="Roll D%"></button>
-                            <span class="lp-dice-result" id="lp-dice-result"></span>
+                                title="Roll D%" aria-label="Roll d100 against the last skill"></button>
+                            <span class="lp-dice-result" id="lp-dice-result" role="status" aria-live="polite"></span>
                         </div>
                     </div>
                     <!-- ── Full live-play sheet (Field Document theme only) ── -->
@@ -239,7 +239,7 @@
                                 title="Randomly fills: Name, Sex, Age, Nationality, Employer, Education, and Physical Description. Employer &amp; education match your profession. Physical description is influenced by STR &amp; CON.">RANDOM
                                 BIO?</button>
                             <select id="bio-gender-select"
-                                title="Sets the gender used when generating a random name. Does not affect any other field.">
+                                title="Sets the gender used when generating a random name. Does not affect any other field." aria-label="Gender">
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
                                 <option value="non-binary">Non-binary</option>
@@ -313,19 +313,19 @@
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-violence-incident1"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to violence, incident 1">
                                                     <span>1</span>
                                                 </label>
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-violence-incident2"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to violence, incident 2">
                                                     <span>2</span>
                                                 </label>
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-violence-incident3"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to violence, incident 3">
                                                     <span>3</span>
                                                 </label>
                                             </div>
@@ -336,19 +336,19 @@
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-helplessness-incident1"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to helplessness, incident 1">
                                                     <span>1</span>
                                                 </label>
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-helplessness-incident2"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to helplessness, incident 2">
                                                     <span>2</span>
                                                 </label>
                                                 <label class="sanity-checkbox-label">
                                                     <input type="checkbox" id="cs-helplessness-incident3"
                                                         class="sanity-adaptation-checkbox"
-                                                        onchange="updateSanityAdaptations()">
+                                                        onchange="updateSanityAdaptations()" aria-label="Adaptation to helplessness, incident 3">
                                                     <span>3</span>
                                                 </label>
                                             </div>
@@ -507,7 +507,7 @@
                     <fieldset class="panel panel-proto fieldset-default">
                         <legend>Prototype Token / Misc JSON</legend>
                         <label>Prototype Token (JSON):</label>
-                        <textarea id="cs-prototype-json">{
+                        <textarea id="cs-prototype-json" aria-label="Prototype token JSON">{
   "actorLink": true,
   "name": "Agent",
   "width": 1,
@@ -515,7 +515,7 @@
   "texture": { "src": "icons/svg/mystery-man.svg" }
 }</textarea>
                         <label>Items (JSON array):</label>
-                        <textarea id="cs-items-json">[{
+                        <textarea id="cs-items-json" aria-label="Items JSON">[{
   "name": "Unarmed Attack",
   "type": "weapon",
   "flags": { "deltagreen": { "AutoAdded": true, "SystemName": "unarmed-attack" } },
@@ -596,7 +596,7 @@
                                                 HTML</button>
                                             <input type="file" id="import-sheet-file" accept=".html,text/html"
                                                 style="display:none"
-                                                onchange="dgSaveLoad.importFromSheet(this.files[0]); this.value=''">
+                                                onchange="dgSaveLoad.importFromSheet(this.files[0]); this.value=''" aria-label="Printable sheet HTML file to import">
                                             <p class="io-option-desc">Loads a previously exported <strong>Printable
                                                     Sheet .html file</strong> back into the editor. This is a perfect
                                                 round-trip &mdash; every stat, skill, bond, equipment item, and setting
@@ -639,17 +639,19 @@
                                     <div class="export-action-group-label">Print from Foundry .json</div>
                                     <p class="description-text">Paste, drag-and-drop, or upload a Foundry VTT character
                                         .json file.</p>
-                                    <div id="json-drop-zone" class="json-drop-zone"
+                                    <div id="json-drop-zone" class="json-drop-zone" role="button" tabindex="0"
+                                        aria-label="Import a Foundry VTT character JSON file: drop a .json file here, or press Enter to browse"
                                         ondragover="jsonDropZone.over(event)" ondragleave="jsonDropZone.leave(event)"
                                         ondrop="jsonDropZone.drop(event)"
-                                        onclick="document.getElementById('json-file-input').click()">
+                                        onclick="document.getElementById('json-file-input').click()"
+                                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('json-file-input').click();}">
                                         <span class="json-drop-label">Drop Foundry VTT .json here or click to
                                             browse</span>
                                         <input type="file" id="json-file-input" accept=".json,application/json"
-                                            style="display:none" onchange="jsonDropZone.fileSelected(event)">
+                                            style="display:none" onchange="jsonDropZone.fileSelected(event)" aria-label="Foundry VTT JSON file to import">
                                     </div>
                                     <textarea id="json-import-area" rows="5"
-                                        placeholder="Paste exported Foundry VTT character .json here..."></textarea>
+                                        placeholder="Paste exported Foundry VTT character .json here..." aria-label="Paste Foundry VTT character JSON"></textarea>
                                     <div class="section-buttons">
                                         <button type="button" id="json-to-printable-button"
                                             onclick="exportPrintableFromJSON()"
@@ -741,6 +743,7 @@
                     Delta Green intellectual property.</p>
             </div>
         </footer>
+    </div><!-- /.content -->
         <script src="professions.js"></script>
         <script src="bonds.js"></script>
         <script src="bio.js"></script>

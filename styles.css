@@ -465,7 +465,8 @@
 
 /* ── Son of Sam Theme (Black / Red / White — all sharp edges) ───────────── */
 .theme-son-of-sam {
-    --primary-color: #cc0000;
+    /* #cc0000 on #000 measured 3.57:1 (fails AA 4.5:1); #f03030 = 5.17:1 */
+    --primary-color: #f03030;
     --bg-color: #000000;
     --text-color: #f0f0f0;
     --input-bg: #080000;
@@ -488,7 +489,7 @@
 
 /* ── Statistics buy section ──────────────────────────────────────────────── */
 .theme-son-of-sam #stats-buy-section {
-    --primary-color: #cc0000;
+    --primary-color: #f03030;
     border: 1px solid rgba(204, 0, 0, 0.4);
     padding: 24px 20px 18px;
     background: rgba(204, 0, 0, 0.02);
@@ -497,7 +498,7 @@
 }
 
 .theme-son-of-sam #stats-buy-section+.button-container {
-    --primary-color: #cc0000;
+    --primary-color: #f03030;
 }
 
 /* ── Per-section accents — all the same red ─────────────────────────────── */
@@ -506,12 +507,12 @@
 .theme-son-of-sam .panel-bonus-skills,
 .theme-son-of-sam #cs-bonds-fieldset,
 .theme-son-of-sam #eq-picker-fieldset {
-    --primary-color: #cc0000;
+    --primary-color: #f03030;
     border-color: #cc0000;
 }
 
 .theme-son-of-sam #stats-buy-section {
-    --primary-color: #cc0000;
+    --primary-color: #f03030;
 }
 
 /* Legend labels: blood-red background, black text */
@@ -3178,6 +3179,19 @@ textarea {
     border-color: rgba(254, 100, 11, 0.6);
 }
 
+/* ── Keyboard focus visibility (WCAG 2.4.7) ──────────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--primary-color, #00b521);
+    outline-offset: 2px;
+}
+
+/* LP sheet focus states were background-only (near-invisible on paper) */
+.lp-sheet :is(button, input, select, textarea, [tabindex]):focus-visible,
+#lp-adv-modal :is(button, input, select, textarea):focus-visible {
+    outline: 3px solid #d97706 !important;
+    outline-offset: 1px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════   DICE ROLLER PANEL═══════════════════════════════════════════════════════════════════ */
 #dr-panel {
     position: fixed;
@@ -5714,8 +5728,8 @@ input[type="checkbox"]:checked+label {
     font-family: 'Courier New', Courier, monospace !important;
     font-size: 1.1rem !important;
     font-weight: 700 !important;
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
     display: flex !important;
     align-items: center;
     justify-content: center;
