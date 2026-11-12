@@ -768,7 +768,7 @@ function getCompletedSkills() {
         const displayName = inst.key === 'homebrew'
             ? label
             : (inst.specialty ? `${label} (${inst.specialty})` : label);
-        result.push({ key: inst.key, label, specialty: inst.specialty, displayName, value: inst.value });
+        result.push({ key: inst.key, label, specialty: inst.specialty, displayName, value: inst.value, id: inst.id });
     });
     return result;
 }
@@ -3326,11 +3326,12 @@ function _buildLpSkillsGrid() {
     // Use getCompletedSkills() as the canonical source (base skills + specialty instances).
     const skillRows = getCompletedSkills().map(skill => ({
         key: skill.specialty === null ? skill.key : null,  // keyed only for base skills
+        instId: skill.specialty === null ? null : (skill.id || null), // F3: instance rows write back by id
         display: esc(skill.displayName),
         rawName: skill.displayName,
         val: skill.value
     }));
-    document.querySelectorAll('#cs-custom-skills .custom-skill-row').forEach(row => {
+    document.querySelectorAll('#cs-custom-skills .custom-skill-row').forEach((row, custIdx) => {
         const valInput = row.querySelector('.custom-skill-value');
         if (!valInput) return;
         const specSelect = row.querySelector('select');        // any select in the row
@@ -3351,7 +3352,7 @@ function _buildLpSkillsGrid() {
             // Plain user-added custom skill (no label)
             rawName = nameInput.value.trim();
         }
-        if (rawName) skillRows.push({ key: null, display: esc(rawName), rawName, val: parseInt(valInput.value) || 0 });
+        if (rawName) skillRows.push({ key: null, custIdx, display: esc(rawName), rawName, val: parseInt(valInput.value) || 0 });
     });
 
     // ── Build column HTML ──────────────────────────────────────────────
@@ -3377,7 +3378,9 @@ function _buildLpSkillsGrid() {
         const rows = skillRows.slice(start, end).map(sk => {
             const cbId = sk.key ? ` id="lp-sk-cb-${sk.key}"` : '';
             const pct = sk.val != null ? sk.val + '%' : '';
-            const skillSrc = sk.key ? ` data-skill-src="cs-skill-${sk.key}"` : '';
+            const skillSrc = sk.key ? ` data-skill-src="cs-skill-${sk.key}"`
+                : (sk.instId ? ` data-inst-id="${sk.instId}"`
+                    : (sk.custIdx != null ? ` data-cust-idx="${sk.custIdx}"` : ''));
             const isChecked = sk.key
                 ? checkedSkillKeys.has(sk.key)
                 : checkedCustomNames.has(sk.rawName || '');
@@ -3886,11 +3889,24 @@ function _wireLpProxies() {
                 if (isZero) cb.checked = false;
             }
             const srcId = inp.dataset.skillSrc;
-            if (!srcId) return;
-            const srcEl = document.getElementById(srcId);
-            if (!srcEl) return;
             const raw = parseInt(inp.value.replace('%', ''));
-            if (!isNaN(raw)) srcEl.value = raw;
+            if (srcId) {
+                const srcEl = document.getElementById(srcId);
+                if (srcEl && !isNaN(raw)) srcEl.value = raw;
+                return;
+            }
+            // F3: specialty-instance rows write straight back to appState
+            if (inp.dataset.instId) {
+                const inst = appState.specialtyInstances.find(i => i.id === inp.dataset.instId);
+                if (inst && !isNaN(raw)) { inst.value = raw; window.dgSaveLoad?.save?.(); }
+                return;
+            }
+            // F3: form-custom-skill rows write back to their hidden form input
+            if (inp.dataset.custIdx != null) {
+                const rows = document.querySelectorAll('#cs-custom-skills .custom-skill-row');
+                const vin = rows[+inp.dataset.custIdx]?.querySelector('.custom-skill-value');
+                if (vin && !isNaN(raw)) { vin.value = raw; vin.dispatchEvent(new Event('input', { bubbles: true })); }
+            }
         });
 
         // On blur (change), normalise display and fire the full input chain so
@@ -3898,14 +3914,30 @@ function _wireLpProxies() {
         skillGrid.addEventListener('change', e => {
             const inp = e.target;
             if (!inp.classList.contains('lp-skill-val')) return;
-            const srcId = inp.dataset.skillSrc;
-            if (!srcId) return;
-            const srcEl = document.getElementById(srcId);
-            if (!srcEl) return;
-            const raw = parseInt(inp.value.replace('%', '')) || 0;
+            const raw = Math.max(0, Math.min(99, parseInt(inp.value.replace('%', '')) || 0));
             inp.value = raw + '%';
-            srcEl.value = raw;
-            srcEl.dispatchEvent(new Event('input', { bubbles: true }));
+            const srcId = inp.dataset.skillSrc;
+            if (srcId) {
+                const srcEl = document.getElementById(srcId);
+                if (!srcEl) return;
+                srcEl.value = raw;
+                srcEl.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+            if (inp.dataset.instId) {
+                const inst = appState.specialtyInstances.find(i => i.id === inp.dataset.instId);
+                if (inst) {
+                    inst.value = raw;
+                    renderSpecialtySkills();
+                    window.dgSaveLoad?.save?.();
+                }
+                return;
+            }
+            if (inp.dataset.custIdx != null) {
+                const rows = document.querySelectorAll('#cs-custom-skills .custom-skill-row');
+                const vin = rows[+inp.dataset.custIdx]?.querySelector('.custom-skill-value');
+                if (vin) { vin.value = raw; vin.dispatchEvent(new Event('input', { bubbles: true })); }
+            }
         });
     }
 
@@ -4136,6 +4168,8 @@ function lpRollAdvancement() {
             newVal: improved ? Math.min(99, current + improve) : current,
             valInp,
             skillSrc: valInp?.dataset?.skillSrc || null,
+            instId: valInp?.dataset?.instId || null,
+            custIdx: valInp?.dataset?.custIdx != null ? +valInp.dataset.custIdx : null,
         });
     });
 
@@ -4220,6 +4254,7 @@ function lpShowAdvancementResults(rows) {
 
 function lpApplyAdvancement() {
     if (!_lpAdvancementPending) return;
+    let touchedInstances = false;
     _lpAdvancementPending.forEach(r => {
         if (!r.improved) return;
         if (r.valInp) r.valInp.value = r.newVal + '%';
@@ -4227,9 +4262,21 @@ function lpApplyAdvancement() {
             const src = document.getElementById(r.skillSrc);
             if (src) src.value = r.newVal;
         }
+        if (r.instId) {
+            const inst = appState.specialtyInstances.find(i => i.id === r.instId);
+            if (inst) { inst.value = r.newVal; touchedInstances = true; }
+        }
+        if (r.custIdx != null) {
+            const rows = document.querySelectorAll('#cs-custom-skills .custom-skill-row');
+            const vin = rows[r.custIdx]?.querySelector('.custom-skill-value');
+            if (vin) vin.value = r.newVal;
+        }
     });
     lpClearSkillChecks();
     lpDismissAdvancement();
+    // F3: persist the improvements (LP-only edits have no form input to fire)
+    if (touchedInstances) renderSpecialtySkills();
+    window.dgSaveLoad?.save?.();
 }
 
 function lpDismissAdvancement() {
