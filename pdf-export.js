@@ -403,7 +403,8 @@
                     if (label) {
                         // Best-effort: split "Name (relationship)" back apart
                         const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-                        bonds.push({ name: m ? m[1].trim() : label, relationship: m ? m[2].trim() : '', score });
+                        // id required for removal (removeBondFromSheet keys on it)
+                        bonds.push({ id: 'bond-' + Date.now() + Math.random().toString(36).substring(2, 11), name: m ? m[1].trim() : label, relationship: m ? m[2].trim() : '', score });
                     }
                 }
 

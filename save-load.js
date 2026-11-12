@@ -629,6 +629,13 @@
         document.querySelectorAll('select').forEach(el => {
             el.selectedIndex = 0;
         });
+        // Sync the applied theme with the reset selector (was left desynced:
+        // select showed option 0 while the old theme class stayed applied).
+        const themeSel = document.getElementById('cs-theme-select');
+        if (themeSel) themeSel.dispatchEvent(new Event('change'));
+
+        // Reset point-buy stats (stat spans + derived values) to defaults
+        if (typeof resetStats === 'function') resetStats();
 
         // Reset tracker values (HP, WP, SAN, BP) to their defaults
         document.querySelectorAll('.lp-tracker-value').forEach(el => {
@@ -636,8 +643,9 @@
             el.textContent = def;
         });
 
-        // Clear weapon rows
-        const weaponTbody = document.getElementById('lp-weapon-tbody');
+        // Clear weapon rows (real id is lp-weapons-tbody — the old id never matched,
+        // so LP weapons survived every clear)
+        const weaponTbody = document.getElementById('lp-weapons-tbody');
         if (weaponTbody) weaponTbody.innerHTML = '';
 
         // Clear equipment picker
@@ -646,6 +654,14 @@
         // Clear bonds
         window.bondsOnSheet = [];
         if (typeof renderBondsOnSheet === 'function') renderBondsOnSheet();
+
+        // Clear specialty instances + recorded bonuses (they survived every clear
+        // and reappeared on the next re-render)
+        if (typeof appState === 'object' && appState) {
+            appState.specialtyInstances = [];
+            appState.appliedBonuses = {};
+            if (typeof renderSpecialtySkills === 'function') renderSpecialtySkills();
+        }
 
         showToast('Sheet cleared.');
     }
@@ -749,7 +765,15 @@
         if (Array.isArray(out.bonds)) out.bonds.forEach(b => { if (b && b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); });
         if (out.appliedBonuses && typeof out.appliedBonuses === 'object') {
             const ab = {};
-            Object.keys(out.appliedBonuses).forEach(k => { ab[k] = _clampInt(out.appliedBonuses[k], 0, -9999, 9999); });
+            Object.keys(out.appliedBonuses).forEach(k => {
+                const v = out.appliedBonuses[k];
+                if (v && typeof v === 'object') {
+                    // { added, base } baseline shape (resetBonusSkills restores base)
+                    ab[k] = { added: _clampInt(v.added, 0, 0, 9999), base: _clampInt(v.base, 0, 0, 999) };
+                } else {
+                    ab[k] = _clampInt(v, 0, -9999, 9999); // legacy numeric shape
+                }
+            });
             out.appliedBonuses = ab;
         }
         if (out.theme && !THEMES.includes(out.theme)) delete out.theme;

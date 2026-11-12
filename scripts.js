@@ -765,7 +765,7 @@ function addManualSpecialtySkill() {
 const appState = {
     currentBond: null,
     agentStats: {},
-    appliedBonuses: {}, // { displayName: totalPointsAdded } — used for reset
+    appliedBonuses: {}, // { displayName: { added, base } } — reset restores base (legacy saves: numeric)
     specialtyInstances: [], // { id, key, specialty, value, source }
 };
 
@@ -1815,6 +1815,20 @@ function fillBonusPackage() {
 }
 
 /**
+ * Record the pre-bonus baseline for a skill the first time a bonus is applied to it.
+ * appState.appliedBonuses[key] = { added, base } — resetBonusSkills() RESTORES to
+ * `base` instead of subtracting `added`, because applyBonusSkills caps at
+ * CONFIG.MAX_SKILL_VALUE: subtracting the full applied amount after a cap destroyed
+ * the underlying value (e.g. Alertness 20 → 8×20 capped at 80 → Reset → 0).
+ * Legacy saves may still hold the old numeric shape; reset handles both.
+ */
+function _recordBonusBaseline(skillKey, currentValue) {
+    if (appState.appliedBonuses[skillKey] === undefined) {
+        appState.appliedBonuses[skillKey] = { added: 0, base: Math.max(0, parseInt(currentValue, 10) || 0) };
+    }
+}
+
+/**
  * Applies bonus skill points from the 8 dropdown selectors.
  * Each selected skill gets +CONFIG.BONUS_SKILL_POINTS, capped at CONFIG.MAX_SKILL_VALUE.
  * Specialty instances are boosted in place, or created if they don't exist yet.
@@ -1852,8 +1866,10 @@ function applyBonusSkills() {
                     i => i.key === baseSkillKey && i.specialty === resolvedSpecialty
                 );
                 if (existing) {
+                    _recordBonusBaseline(skillKey, existing.value);
                     existing.value = Math.min(existing.value + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                 } else {
+                    _recordBonusBaseline(skillKey, 0);
                     _addSpecialtyInstance(baseSkillKey, resolvedSpecialty, CONFIG.BONUS_SKILL_POINTS, 'bonus');
                 }
                 appliedCount++;
@@ -1861,6 +1877,7 @@ function applyBonusSkills() {
                 // Parenthetical but not a specialty group — treat as a plain base skill
                 const skillInput = document.getElementById(`cs-skill-${baseSkillKey}`);
                 if (skillInput) {
+                    _recordBonusBaseline(skillKey, skillInput.value);
                     skillInput.value = Math.min((parseInt(skillInput.value) || 0) + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                     appliedCount++;
                 }
@@ -1869,6 +1886,7 @@ function applyBonusSkills() {
             // Plain base skill
             const skillInput = document.getElementById(`cs-skill-${skillKey}`);
             if (skillInput) {
+                _recordBonusBaseline(skillKey, skillInput.value);
                 skillInput.value = Math.min((parseInt(skillInput.value) || 0) + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                 appliedCount++;
             } else {
@@ -1877,6 +1895,7 @@ function applyBonusSkills() {
                     const nameInput = row.querySelector('.custom-skill-name');
                     const valueInput = row.querySelector('.custom-skill-value');
                     if (nameInput && nameInput.value === skillKey && valueInput) {
+                        _recordBonusBaseline(skillKey, valueInput.value);
                         valueInput.value = Math.min((parseInt(valueInput.value) || 0) + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                         appliedCount++;
                     }
@@ -1888,8 +1907,10 @@ function applyBonusSkills() {
         // Re-render specialty section to reflect boosted/new instances
         renderSpecialtySkills();
         // Record what was applied so resetBonusSkills() can reverse it
+        // (baseline recorded pre-boost by _recordBonusBaseline)
         selectedSkills.forEach(skillKey => {
-            appState.appliedBonuses[skillKey] = (appState.appliedBonuses[skillKey] || 0) + CONFIG.BONUS_SKILL_POINTS;
+            const entry = appState.appliedBonuses[skillKey];
+            if (entry && typeof entry === 'object') entry.added += CONFIG.BONUS_SKILL_POINTS;
         });
         alert(`Applied +${CONFIG.BONUS_SKILL_POINTS} bonus to ${appliedCount} skill(s)!`);
         // Turn button green and hide reminder
@@ -1909,7 +1930,9 @@ function applyBonusSkills() {
 
 /**
  * Reverse all bonus points that were applied via applyBonusSkills().
- * Uses appState.appliedBonuses to know exactly what to subtract.
+ * Uses appState.appliedBonuses: entries of shape { added, base } RESTORE the
+ * pre-bonus baseline (correct across the CONFIG.MAX_SKILL_VALUE cap); the legacy
+ * numeric shape (pre-baseline saves) falls back to subtraction.
  */
 function resetBonusSkills() {
     const applied = appState.appliedBonuses;
@@ -1918,7 +1941,16 @@ function resetBonusSkills() {
         return;
     }
 
-    Object.entries(applied).forEach(([skillKey, totalAdded]) => {
+    // Returns the value to set for an entry given the current value on the sink.
+    const _restoreValue = (entry, current) => {
+        if (entry && typeof entry === 'object' && Number.isFinite(entry.base)) {
+            return Math.max(0, entry.base);
+        }
+        const added = (entry && typeof entry === 'object') ? entry.added : entry;
+        return Math.max(0, current - (parseInt(added, 10) || 0));
+    };
+
+    Object.entries(applied).forEach(([skillKey, entry]) => {
         const specialtyMatch = skillKey.match(/^(.+?)\s*\((.+?)\)$/);
 
         if (specialtyMatch) {
@@ -1932,7 +1964,7 @@ function resetBonusSkills() {
                     i => i.key === baseSkillKey && i.specialty === specialty
                 );
                 if (inst) {
-                    inst.value = Math.max(0, inst.value - totalAdded);
+                    inst.value = _restoreValue(entry, inst.value);
                     // Remove the instance if it was created purely by the bonus step
                     if (inst.value <= 0 && inst.source === 'bonus') {
                         appState.specialtyInstances = appState.specialtyInstances.filter(i => i !== inst);
@@ -1941,20 +1973,20 @@ function resetBonusSkills() {
             } else {
                 // Non-specialty parenthetical — reverse on the base skill input
                 const input = document.getElementById(`cs-skill-${baseSkillKey}`);
-                if (input) input.value = Math.max(0, (parseInt(input.value) || 0) - totalAdded);
+                if (input) input.value = _restoreValue(entry, parseInt(input.value) || 0);
             }
         } else {
             // Plain base skill
             const skillInput = document.getElementById(`cs-skill-${skillKey}`);
             if (skillInput) {
-                skillInput.value = Math.max(0, (parseInt(skillInput.value) || 0) - totalAdded);
+                skillInput.value = _restoreValue(entry, parseInt(skillInput.value) || 0);
             } else {
                 // Custom skill (Foreign Language etc.)
                 document.querySelectorAll('.custom-skill-row').forEach(row => {
                     const nameInput = row.querySelector('.custom-skill-name');
                     const valueInput = row.querySelector('.custom-skill-value');
                     if (nameInput && nameInput.value === skillKey && valueInput) {
-                        valueInput.value = Math.max(0, (parseInt(valueInput.value) || 0) - totalAdded);
+                        valueInput.value = _restoreValue(entry, parseInt(valueInput.value) || 0);
                     }
                 });
             }
@@ -4485,7 +4517,10 @@ function updateBondRelationship(bondId, newRelationship) {
 function updateBondScore(bondId, newScore) {
     const bond = window.bondsOnSheet.find(b => b.id === bondId);
     if (bond) {
-        bond.score = parseInt(newScore) || 10;
+        // parseInt(x) || 10 silently resurrected a bond scored to 0 (broken bond)
+        // as 10 — only a non-numeric value falls back to 10.
+        const n = parseInt(newScore, 10);
+        bond.score = Number.isFinite(n) ? Math.max(0, n) : 10;
         _saveBonds();
     }
 }
@@ -4496,6 +4531,16 @@ function updateBondScore(bondId, newScore) {
  * Also keeps the LP sheet bond table in sync if it has been built.
  */
 function renderBondsOnSheet() {
+    // Bonds restored from older saves / PDF imports may lack ids — without one a
+    // bond can never be removed (removeBondFromSheet keys on id). Backfill here.
+    let _idsBackfilled = false;
+    window.bondsOnSheet.forEach(b => {
+        if (b && !b.id) {
+            b.id = 'bond-' + Date.now() + Math.random().toString(36).substring(2, 11);
+            _idsBackfilled = true;
+        }
+    });
+    if (_idsBackfilled) _saveBonds();
     _saveBonds();
     const bondsContainer = document.getElementById('cs-bonds');
 
