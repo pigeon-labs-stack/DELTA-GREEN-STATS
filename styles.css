@@ -3151,6 +3151,33 @@ textarea {
     transform: translateX(-50%) translateY(0);
 }
 
+/* ── Autosave status indicator (created on demand by save-load.js) ──── */
+#dg-save-status {
+    position: fixed;
+    bottom: 10px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #9fdc9f;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 9998;
+}
+
+#dg-save-status.dg-saved-visible {
+    opacity: 1;
+}
+
+#dg-save-status.dg-saved-fail {
+    color: #fe640b;
+    border-color: rgba(254, 100, 11, 0.6);
+}
+
 /* ═══════════════════════════════════════════════════════════════════   DICE ROLLER PANEL═══════════════════════════════════════════════════════════════════ */
 #dr-panel {
     position: fixed;

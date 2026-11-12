@@ -575,6 +575,15 @@
             _flashSaved();
         } catch (e) {
             console.warn('[DG Save]', e);
+            // Quota exceeded / private-mode failures were silent: the user
+            // kept editing with autosave dead. Show a persistent red
+            // indicator and a (throttled) toast with a recovery path.
+            _flashSaveFailed();
+            const now = Date.now();
+            if (now - (_lastSaveWarnTs || 0) > 60000) {
+                _lastSaveWarnTs = now;
+                showToast('Autosave failed — browser storage is full. Export a printable sheet before closing this tab.');
+            }
         }
     }
 
@@ -846,13 +855,34 @@
     /* =========================================================================
        UI FEEDBACK
     ========================================================================= */
-    let _savedTimer;
+    let _savedTimer, _lastSaveWarnTs = 0;
+    function _saveStatusEl() {
+        let el = document.getElementById('dg-save-status');
+        if (!el) {
+            // The element was referenced here for ages but defined nowhere —
+            // users had no save confirmation at all. Create it on demand.
+            el = document.createElement('div');
+            el.id = 'dg-save-status';
+            el.setAttribute('role', 'status');
+            el.setAttribute('aria-live', 'polite');
+            document.body.appendChild(el);
+        }
+        return el;
+    }
     function _flashSaved() {
-        const el = document.getElementById('dg-save-status');
-        if (!el) return;
+        const el = _saveStatusEl();
+        el.textContent = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        el.classList.remove('dg-saved-fail');
         el.classList.add('dg-saved-visible');
         clearTimeout(_savedTimer);
         _savedTimer = setTimeout(() => el.classList.remove('dg-saved-visible'), 2000);
+    }
+    function _flashSaveFailed() {
+        const el = _saveStatusEl();
+        el.textContent = 'Autosave FAILED — storage full';
+        el.classList.add('dg-saved-visible', 'dg-saved-fail');
+        clearTimeout(_savedTimer);
+        _savedTimer = setTimeout(() => el.classList.remove('dg-saved-visible'), 6000);
     }
 
     function showToast(msg) {

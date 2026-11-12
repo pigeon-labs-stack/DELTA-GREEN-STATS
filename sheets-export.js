@@ -12,7 +12,21 @@
     "use strict";
 
     const TEMPLATE_URL = "assets/Delta-Green-character-sheet-template.xlsx";
+    // Supply chain: local vendor copy first; CDN fallback pinned with SRI.
+    const JSZIP_LOCAL = "assets/vendor/jszip.min.js";
     const JSZIP_CDN = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    const JSZIP_SRI = "sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG";
+
+    function _loadScript(src, integrity) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
+            s.onload = resolve;
+            s.onerror = () => reject(new Error("Could not load " + src));
+            document.head.appendChild(s);
+        });
+    }
 
     // ── Skill key → score cell (Front sheet) ────────────────────────────
     const SKILL_CELL = {
@@ -93,14 +107,10 @@
 
     // ── JSZip loader ─────────────────────────────────────────────────────
     function loadJSZip() {
-        return new Promise((resolve, reject) => {
-            if (window.JSZip) { resolve(); return; }
-            const s = document.createElement("script");
-            s.src = JSZIP_CDN;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error("Could not load JSZip from CDN."));
-            document.head.appendChild(s);
-        });
+        if (window.JSZip) return Promise.resolve();
+        return _loadScript(JSZIP_LOCAL)
+            .catch(() => _loadScript(JSZIP_CDN, JSZIP_SRI))
+            .catch(() => { throw new Error("Could not load JSZip (local or CDN)."); });
     }
 
     /**

@@ -10,7 +10,23 @@
     "use strict";
 
     const TEMPLATE_URL = "assets/Delta-Green-RPG-Character-Sheet.pdf";
+    // Supply chain: prefer the locally vendored copy (same version, pinned
+    // content hash). The CDN fallback carries SRI so a compromise/MITM of
+    // unpkg cannot inject unverified JS into this origin.
+    const PDF_LIB_LOCAL = "assets/vendor/pdf-lib.min.js";
     const PDF_LIB_CDN = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+    const PDF_LIB_SRI = "sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI";
+
+    function _loadScript(src, integrity) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            if (integrity) { s.integrity = integrity; s.crossOrigin = "anonymous"; }
+            s.onload = resolve;
+            s.onerror = () => reject(new Error("Could not load " + src));
+            document.head.appendChild(s);
+        });
+    }
 
     const SKILL_FIELD = {
         accounting: "Accounting 10",
@@ -94,14 +110,10 @@
     }
 
     function loadPdfLib() {
-        return new Promise((resolve, reject) => {
-            if (window.PDFLib) { resolve(); return; }
-            const s = document.createElement("script");
-            s.src = PDF_LIB_CDN;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error("Could not load pdf-lib from CDN."));
-            document.head.appendChild(s);
-        });
+        if (window.PDFLib) return Promise.resolve();
+        return _loadScript(PDF_LIB_LOCAL)
+            .catch(() => _loadScript(PDF_LIB_CDN, PDF_LIB_SRI))
+            .catch(() => { throw new Error("Could not load pdf-lib (local or CDN)."); });
     }
 
     function setField(form, fieldName, value) {

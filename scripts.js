@@ -137,6 +137,16 @@ const SPECIALTY_OPTIONS = {
 const SPECIALTY_SKILL_KEYS = new Set(Object.keys(SPECIALTY_OPTIONS));
 
 /**
+ * Prototype-safe profession lookup. Share payloads / localStorage are
+ * attacker-influenced: bio.profession = "toString" resolves through
+ * Object.prototype and passes a plain truthiness guard, then crashes on
+ * .description.match mid-restore. Only own keys are professions.
+ */
+function ownProfession(key) {
+    return (key && Object.prototype.hasOwnProperty.call(professions, key)) ? professions[key] : null;
+}
+
+/**
  * Module-level cache of [value, displayText] options built by populateBonusSkillDropdowns().
  * Used by fillBonusPackage() to rebuild filtered dropdowns without re-scanning the DOM.
  */
@@ -1323,14 +1333,13 @@ function selectProfession(professionKey) {
     const applyRow = document.getElementById('bio-profession-apply-row');
     const applyBtn = document.getElementById('apply-profession-button');
 
-    if (!professionKey || !professions[professionKey]) {
+    const profession = ownProfession(professionKey);
+    if (!profession) {
         infoDiv.textContent = '';
         optionalDiv.innerHTML = '';
         if (applyRow) applyRow.style.display = 'none';
         return;
     }
-
-    const profession = professions[professionKey];
 
     // Extract BONDS info
     const bondsMatch = profession.description.match(/BONDS:\s*(\d+)/);
@@ -1466,12 +1475,11 @@ function applyProfessionSkills() {
     const professionSelect = document.getElementById('cs-profession-select');
     const professionKey = professionSelect.value;
 
-    if (!professionKey || !professions[professionKey]) return;
+    const profession = ownProfession(professionKey);
+    if (!profession) return;
 
     // Clear all existing profession-applied skills before applying new ones
     clearProfessionSkills();
-
-    const profession = professions[professionKey];
     let appliedCount = 0;
 
     /**
@@ -3655,7 +3663,7 @@ function syncLpFromForm() {
 
     // ── Profession display (read-only span) ────────────────────────
     const profKey = document.getElementById('cs-profession-select')?.value || '';
-    const profTitle = (profKey && professions?.[profKey]) ? professions[profKey].title : profKey || '';
+    const profTitle = (ownProfession(profKey) || {}).title || profKey || '';
     const profSpan = document.getElementById('lp-profession-display');
     if (profSpan) profSpan.textContent = profTitle;
 
@@ -4359,8 +4367,9 @@ function _wizardBondLimit() {
     if (window.dgWizard?._currentStep() === null || window.dgWizard?._currentStep() === undefined) return null;
     const profSelect = document.getElementById('cs-profession-select');
     const key = profSelect ? profSelect.value : '';
-    if (!key || !professions[key]) return null;
-    const m = professions[key].description.match(/BONDS:\s*(\d+)/);
+    const prof = ownProfession(key);
+    if (!prof) return null;
+    const m = prof.description.match(/BONDS:\s*(\d+)/);
     return m ? parseInt(m[1]) : null;
 }
 
