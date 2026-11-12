@@ -3211,7 +3211,7 @@ textarea {
     #dg-save-status,
     #theme-selector,
     #specialty-tooltip-panel,
-    .lp-tracker {
+    #lp-tracker-bar {
         display: none !important;
     }
 }

@@ -295,8 +295,10 @@
             });
 
             // ── Front: Derived current values (max/formula cells untouched)
-            if (derived.hp) s1 = writeCell(s1, "P20", parseInt(derived.hp));
-            if (derived.wp) s1 = writeCell(s1, "P21", parseInt(derived.wp));
+            const _hp = parseInt(derived.hp);
+            const _wp = parseInt(derived.wp);
+            if (Number.isFinite(_hp)) s1 = writeCell(s1, "P20", _hp);
+            if (Number.isFinite(_wp)) s1 = writeCell(s1, "P21", _wp);
 
             // ── Front: Bonds ─────────────────────────────────────────────
             bonds.slice(0, 6).forEach((b, i) => {

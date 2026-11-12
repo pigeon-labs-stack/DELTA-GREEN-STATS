@@ -1299,6 +1299,7 @@ function addCustomSkill() {
 
     const skillRow = document.createElement('div');
     skillRow.className = 'custom-skill-row';
+    skillRow.dataset.source = 'manual'; // F19: survives clearProfessionSkills
 
     const _uid = `cskill-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
 
@@ -1480,10 +1481,12 @@ function clearProfessionSkills() {
     appState.specialtyInstances = appState.specialtyInstances.filter(i => i.source !== 'profession');
     renderSpecialtySkills();
 
-    // Remove Foreign Language and other custom rows added during profession application
+    // F19: remove only profession-sourced custom rows; hand-made rows survive.
     const customSkillsDiv = document.getElementById('cs-custom-skills');
     if (customSkillsDiv) {
-        customSkillsDiv.querySelectorAll('.custom-skill-row').forEach(row => row.remove());
+        customSkillsDiv.querySelectorAll('.custom-skill-row').forEach(row => {
+            if (row.dataset.source === 'profession') row.remove();
+        });
     }
 }
 
@@ -1953,12 +1956,14 @@ function applyBonusSkills() {
                 skillInput.value = Math.min((parseInt(skillInput.value) || 0) + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                 appliedCount++;
             } else {
-                // Custom skill (Foreign Language etc.) — find by exact name
-                document.querySelectorAll('.custom-skill-row').forEach(row => {
+                // Custom skill (Foreign Language etc.) — find by exact name.
+                // F18: key per row index so duplicate-name rows each record
+                // their own baseline (previously all rows shared one baseline).
+                document.querySelectorAll('.custom-skill-row').forEach((row, rowIdx) => {
                     const nameInput = row.querySelector('.custom-skill-name');
                     const valueInput = row.querySelector('.custom-skill-value');
                     if (nameInput && nameInput.value === skillKey && valueInput) {
-                        _recordBonusBaseline(skillKey, valueInput.value);
+                        _recordBonusBaseline(`${skillKey}#${rowIdx}`, valueInput.value);
                         valueInput.value = Math.min((parseInt(valueInput.value) || 0) + CONFIG.BONUS_SKILL_POINTS, CONFIG.MAX_SKILL_VALUE);
                         appliedCount++;
                     }
@@ -2061,11 +2066,17 @@ function resetBonusSkills() {
             if (skillInput) {
                 skillInput.value = _restoreValue(entry, parseInt(skillInput.value) || 0);
             } else {
-                // Custom skill (Foreign Language etc.)
-                document.querySelectorAll('.custom-skill-row').forEach(row => {
+                // Custom skill (Foreign Language etc.) — F18: '#rowIdx' keys
+                // restore the exact row that was boosted (legacy name-only
+                // keys keep the old all-rows behaviour).
+                const _rowKey = skillKey.match(/^(.*)#(\d+)$/);
+                const _baseName = _rowKey ? _rowKey[1] : skillKey;
+                const _targetIdx = _rowKey ? +_rowKey[2] : null;
+                document.querySelectorAll('.custom-skill-row').forEach((row, rowIdx) => {
                     const nameInput = row.querySelector('.custom-skill-name');
                     const valueInput = row.querySelector('.custom-skill-value');
-                    if (nameInput && nameInput.value === skillKey && valueInput) {
+                    if (nameInput && nameInput.value === _baseName && valueInput
+                        && (_targetIdx === null || _targetIdx === rowIdx)) {
                         valueInput.value = _restoreValue(entry, parseInt(valueInput.value) || 0);
                     }
                 });
@@ -2113,6 +2124,7 @@ function addCustomSkillFromProfession(skillName, skillValue) {
     const customSkillsDiv = document.getElementById('cs-custom-skills');
     const skillRow = document.createElement('div');
     skillRow.className = 'custom-skill-row';
+    skillRow.dataset.source = 'profession'; // F19: removed on profession re-apply; manual rows survive
     skillRow.style.display = 'flex';
     skillRow.style.gap = '8px';
     skillRow.style.marginTop = '8px';
@@ -3066,14 +3078,25 @@ function setTheme(theme, { skipSave = false } = {}) {
         // inputs before saving — but ONLY when we are leaving the LP theme.
         // Running this flush when switching TO the LP theme would overwrite
         // fresher form values with the stale values last shown in the LP grid.
-        const currentTheme = document.getElementById('cs-theme-select')?.value
-            || (document.body.classList.contains('theme-field-doc') ? 'field-doc' : '');
+        // F16: trust the body class (source of truth) over the select value,
+        // and flush specialty-instance / custom rows too, not just base skills.
+        const currentTheme = document.body.classList.contains('theme-field-doc')
+            ? 'field-doc'
+            : (document.getElementById('cs-theme-select')?.value || '');
         if (currentTheme === 'field-doc' && theme !== 'field-doc') {
-            document.querySelectorAll('#lp-sheet .lp-skill-val[data-skill-src]').forEach(inp => {
+            document.querySelectorAll('#lp-sheet .lp-skill-val').forEach(inp => {
                 const raw = parseInt(inp.value);
-                if (!isNaN(raw)) {
+                if (isNaN(raw)) return;
+                if (inp.dataset.skillSrc) {
                     const srcEl = document.getElementById(inp.dataset.skillSrc);
                     if (srcEl) srcEl.value = raw;
+                } else if (inp.dataset.instId) {
+                    const inst = appState.specialtyInstances.find(i => i.id === inp.dataset.instId);
+                    if (inst) inst.value = raw;
+                } else if (inp.dataset.custIdx != null) {
+                    const rows = document.querySelectorAll('#cs-custom-skills .custom-skill-row');
+                    const vin = rows[+inp.dataset.custIdx]?.querySelector('.custom-skill-value');
+                    if (vin) vin.value = raw;
                 }
             });
         }

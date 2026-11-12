@@ -176,8 +176,12 @@
         });
 
         // Bonus skill selections and whether they've been applied
-        const bonusPrepared = document.getElementById('bonus-skills-section')?.style.display !== 'none'
-            && document.getElementById('bonus-skills-section') !== null;
+        const bonusSecEl = document.getElementById('bonus-skills-section');
+        // F9: visibility comes from a CSS class, not inline style — read the
+        // computed value (inline '' always !== 'none' forced bonusPrepared:true)
+        const bonusPrepared = !!bonusSecEl
+            && (bonusSecEl.style.display === 'flex'
+                || (bonusSecEl.style.display === '' && getComputedStyle(bonusSecEl).display !== 'none'));
         const bonusSkills = [];
         for (let i = 0; i < 8; i++) {
             const el = document.getElementById(`cs-bonus-skill-${i}`);
@@ -339,6 +343,10 @@
                 if (btn) { btn.classList.add('apply-profession-done'); btn.textContent = 'Professional Skills Applied'; }
                 const reminder = document.getElementById('reminder-apply-profession');
                 if (reminder) reminder.style.display = 'none';
+            } else if ('professionSkillsApplied' in state) {
+                // F7: imported character without applied profession skills clears the badge
+                const btn = document.getElementById('apply-profession-button');
+                if (btn) { btn.classList.remove('apply-profession-done'); btn.textContent = 'Apply Professional Skills'; }
             }
 
             // Predefined skill values
@@ -436,7 +444,9 @@
             }
 
             // Equipment loadout
-            if (state.equipment?.length) {
+            // F7: any array replaces (clear + add), incl. empty — an imported
+            // character without gear must not inherit the previous one's
+            if (Array.isArray(state.equipment)) {
                 if (typeof window.dgEquipment?.clear === 'function') window.dgEquipment.clear();
                 state.equipment.forEach(entry => {
                     if (typeof entry === 'object' && entry.isCustom) {
@@ -481,9 +491,11 @@
             if (state.lpNotes) {
                 const setTa = (id, v) => {
                     const el = document.getElementById(id);
-                    if (el && v) {
-                        el.value = v;
-                        if (typeof lpAutoExpand === 'function') lpAutoExpand(el);
+                    // F7: import replaces — an empty field in the imported
+                    // character must clear the current value, not keep it
+                    if (el) {
+                        el.value = v || '';
+                        if (v && typeof lpAutoExpand === 'function') lpAutoExpand(el);
                     }
                 };
                 setTa('lp-wounds', state.lpNotes.wounds);
@@ -492,7 +504,8 @@
             }
 
             // LP weapons — replace auto-seeded rows with the full saved set
-            if (state.lpWeapons?.length && typeof addLpWeapon === 'function') {
+            // (F7: any array replaces, incl. empty — ghosts must not survive)
+            if (Array.isArray(state.lpWeapons) && typeof addLpWeapon === 'function') {
                 const wtb = document.getElementById('lp-weapons-tbody');
                 if (wtb) {
                     wtb.querySelectorAll('tr').forEach(r => r.remove());
@@ -500,8 +513,10 @@
                 }
             }
 
-            // LP custom skill rows (added via + ADD SKILL)
-            if (state.lpCustomSkills?.length && typeof addLpSkill === 'function') {
+            // LP custom skill rows (added via + ADD SKILL) — F7: replace, incl. empty
+            if (Array.isArray(state.lpCustomSkills) && typeof addLpSkill === 'function') {
+                document.querySelectorAll('#lp-sheet .lp-skill-name-inp')
+                    .forEach(ni => ni.closest('tr')?.remove());
                 state.lpCustomSkills.forEach(sk => {
                     addLpSkill(true);
                     const grid = document.querySelector('#lp-sheet .lp-skills-grid');
@@ -552,7 +567,8 @@
             if (state.bonusSkills?.length) {
                 state.bonusSkills.forEach((val, i) => {
                     const el = document.getElementById(`cs-bonus-skill-${i}`);
-                    if (el && val) el.value = val;
+                    // F7: replace all dropdowns, incl. blanks
+                    if (el) el.value = val || '';
                 });
             }
 
@@ -564,6 +580,12 @@
                 if (reminder) reminder.style.display = 'none';
                 const resetBtn = document.getElementById('reset-bonus-button');
                 if (resetBtn) resetBtn.style.display = 'inline-block';
+            } else if ('bonusApplied' in state) {
+                // F7: imported character without applied bonuses clears the badges
+                const btn = document.getElementById('apply-bonus-button');
+                if (btn) btn.classList.remove('apply-bonus-done');
+                const resetBtn = document.getElementById('reset-bonus-button');
+                if (resetBtn) resetBtn.style.display = 'none';
             }
 
             // Restore applied bonus tracking map

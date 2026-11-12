@@ -45,6 +45,11 @@ function _int(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** F10: keep a parsed 0 (e.g. HP 0 — dying agent); fall back only when NaN. */
+function _finite(n, fallback) {
+  return Number.isFinite(n) ? n : fallback;
+}
+
 // ─── Data sources ────────────────────────────────────────────────────────────
 
 /**
@@ -72,10 +77,10 @@ function _dataFromDOM() {
   const _sanMax = Math.min(attrs[2], 99 - _unn);
   const _sanCur = parseInt(document.getElementById('cs-sanity-value')?.value);
   const attributes = {
-    HP: { max: attrs[0], current: parseInt(document.getElementById('cs-hp')?.value) || attrs[0] },
-    WP: { max: attrs[1], current: parseInt(document.getElementById('cs-wp')?.value) || attrs[1] },
+    HP: { max: attrs[0], current: _finite(parseInt(document.getElementById('cs-hp')?.value), attrs[0]) },
+    WP: { max: attrs[1], current: _finite(parseInt(document.getElementById('cs-wp')?.value), attrs[1]) },
     SAN: { max: _sanMax, current: Number.isFinite(_sanCur) ? _sanCur : _sanMax },
-    BP: { max: attrs[3], current: parseInt(document.getElementById('cs-breaking-point')?.value) || attrs[3] }
+    BP: { max: attrs[3], current: _finite(parseInt(document.getElementById('cs-breaking-point')?.value), attrs[3]) }
   };
 
   // Biography
