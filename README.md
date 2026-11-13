@@ -291,7 +291,7 @@ Exports a filled, editable **DD Form 315** PDF — the official Delta Green char
 - SAN incident checkboxes (violence and helplessness)
 - Wounds & ailments, personal details and notes from the Live Play sheet
 - PDF remains fully editable after download — fields are not flattened
-- `pdf-lib` lazy-loaded from CDN on first click — no impact on initial page load
+- `pdf-lib` is bundled locally (`assets/vendor/`, loaded lazily on first click with SRI-pinned CDN fallback) — no impact on initial page load
 
 ### Foundry VTT Export
 One-click export of a complete Foundry VTT `agent` actor JSON:
@@ -314,6 +314,7 @@ One-click export of a complete Foundry VTT `agent` actor JSON:
 | **Son of Sam** | Black/red high contrast — animated occult sigil, glitch legend headers |
 | **Field Notes** | Kraft paper notebook — aged parchment background, Permanent Marker headings, Caveat hand-written script, biro annotations, coffee stains |
 | **Live Play (Field Notes)** | DD Form 315 classified document — Field Notes aesthetic applied to the in-session play interface |
+| **Mobile** | Compact single-column layout tuned for phone screens |
 
 ---
 
@@ -323,7 +324,7 @@ One-click export of a complete Foundry VTT `agent` actor JSON:
 DELTA-GREEN-STATS/
 ├── index.html           # Application shell and markup
 ├── scripts.js           # Core logic: stats, skills, professions, export
-├── styles.css           # All styling — base + five theme overrides
+├── styles.css           # All styling — base + six theme overrides
 ├── bio.js               # Random biography data pools
 ├── bonds.js             # Bond NPC pools (five categories)
 ├── professions.js       # Profession definitions and skill packages
@@ -335,7 +336,8 @@ DELTA-GREEN-STATS/
 ├── save-load.js         # Auto-save, share links, import/export
 ├── wizard.js            # Step-by-step guided creation overlay (window.dgWizard)
 └── assets/
-    └── art/             # Screenshots, icons, artwork
+    ├── art/             # Screenshots, icons, artwork
+    └── vendor/          # pdf-lib.min.js, jszip.min.js (SRI-pinned, local-first)
 ```
 
 ---
@@ -345,7 +347,8 @@ DELTA-GREEN-STATS/
 - **HTML5** — semantic markup, no framework
 - **CSS3** — custom properties, grid, flexbox, theme switching
 - **Vanilla JavaScript** — ES6+, zero runtime dependencies
-- **pdf-lib 1.17.1** — lazy-loaded from CDN for PDF AcroForm field filling; not bundled
+- **pdf-lib 1.17.1** — bundled in `assets/vendor/` (SRI-pinned CDN fallback) for PDF AcroForm field filling
+- **JSZip 3.10.1** — bundled in `assets/vendor/` (SRI-pinned CDN fallback) for XLSX assembly
 - **Foundry VTT** — compatible with the Delta Green system
 
 ---

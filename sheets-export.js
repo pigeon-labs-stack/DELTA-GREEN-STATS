@@ -412,7 +412,7 @@
                     .filter(item => item && item.type !== "weapon")
                     .forEach(item => { if (item.name) gearLines.push(item.name); });
             } else {
-                equipment.forEach(n => { if (n) gearLines.push(n); });
+                equipment.forEach(n => { const _g = typeof n === 'string' ? n : (n && n.name); if (_g) gearLines.push(_g); }); // L16
             }
             if (gearLines.length) s2 = writeCell(s2, "C12", gearLines.join("\n"));
 
@@ -455,7 +455,7 @@
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             });
             const url = URL.createObjectURL(blob);
-            const safeName = (bio.name || "Agent").replace(/[^a-z0-9 \-_]/gi, "").trim() || "Agent";
+            const safeName = (bio.name || "Agent").replace(/[^\p{L}\p{N} \-_]/gu, "").trim() || "Agent"; // L15: keep unicode letters
             const a = Object.assign(document.createElement("a"), {
                 href: url,
                 download: safeName + " - Delta Green Character Sheet.xlsx",

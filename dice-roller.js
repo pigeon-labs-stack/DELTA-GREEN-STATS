@@ -41,8 +41,8 @@
     let _e = null;     // cached DOM nodes, populated after buildPanel
 
     /* ── Percentile result tiers (Delta Green Agent's Handbook pp.44-45) ── */
-    // Critical Success: 01 always, OR matching dice (11,22,33,44) on a success
-    // Fumble:           00/100 always, OR matching dice (55,66,77,88,99) on a failure
+    // Critical Success: 01 always, OR ANY matching pair (11,22,…,99) on a success
+    // Fumble:           00/100 always, OR ANY matching pair on a failure
     function evaluate(roll, target) {
         // L13: a 0% skill is legal (skill 0 after creation) — official tiers
         // still apply: 01 always critical, 00 always fumble, doubles on a
@@ -167,7 +167,8 @@
         const target = typeof targetOverride === 'number' && targetOverride > 0
             ? targetOverride
             : (isPct ? parseInt(manualEl?.value) || 0 : 0);
-        if (manualEl && target > 0 && isPct) manualEl.value = target;
+        // L13: don't clobber a typed dice expression (e.g. '2d6+3') with the skill target
+        if (manualEl && target > 0 && isPct && !/\d*\s*d\s*\d+/i.test(manualEl.value)) manualEl.value = target;
         if (targetDisp) targetDisp.textContent = (isPct && target > 0) ? `TARGET: ${target}` : '';
 
         function onDone() {
@@ -212,6 +213,7 @@
         const count = m[1] === '' ? 1 : parseInt(m[1], 10);
         const sides = parseInt(m[2], 10);
         const modifier = m[3] ? parseInt(m[3], 10) : 0;
+        if (Math.abs(modifier) > 1000) return null; // L14: bounded modifiers
         if (!count || count < 1 || count > 20 || sides < 2 || sides > 100) return null;
         return { count, sides, modifier };
     }

@@ -763,7 +763,8 @@ function getCompletedSkills() {
     CONFIG.SKILLS.forEach(([key, label, def]) => {
         if (SPECIALTY_SKILL_KEYS.has(key)) return; // specialty skills come from instances
         const el = document.getElementById(`cs-skill-${key}`);
-        result.push({ key, label, specialty: null, displayName: label, value: parseInt(el?.value) || def || 0 });
+        const _sv = parseInt(el?.value);
+        result.push({ key, label, specialty: null, displayName: label, value: Number.isFinite(_sv) ? _sv : (def || 0) });
     });
     appState.specialtyInstances.forEach(inst => {
         const label = inst.key === 'homebrew'
@@ -1310,6 +1311,7 @@ function addCustomSkill() {
     nameInput.autocomplete = 'off';
     nameInput.placeholder = 'Skill Name';
     nameInput.className = 'custom-skill-name';
+    nameInput.setAttribute('aria-label', 'Custom skill name'); // L22
 
     const valueInput = document.createElement('input');
     valueInput.type = 'number';
@@ -1318,6 +1320,7 @@ function addCustomSkill() {
     valueInput.autocomplete = 'off';
     valueInput.placeholder = '0';
     valueInput.className = 'custom-skill-value';
+    valueInput.setAttribute('aria-label', 'Custom skill value (percent)'); // L22
     valueInput.min = '0';
     valueInput.value = '0';
 
@@ -1767,7 +1770,7 @@ function populateBonusSkillDropdowns() {
     _bonusAllSkillOptions = allSkillOptions;
 
     // Create 8 dropdown selectors
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < CONFIG.BONUS_SKILL_COUNT; i++) {
         const wrapper = document.createElement('label');
         wrapper.style.display = 'flex';
         wrapper.style.flexDirection = 'column';
@@ -1841,7 +1844,7 @@ function fillBonusPackage() {
     if (!pkg) return;
 
     // First pass: restore all 8 dropdowns to the full option list and clear any highlights.
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < CONFIG.BONUS_SKILL_COUNT; i++) {
         const dd = document.getElementById(`cs-bonus-skill-${i}`);
         if (dd && _bonusAllSkillOptions.length) {
             _rebuildBonusDropdown(dd, _bonusAllSkillOptions, '-- Select Skill --');
@@ -2338,7 +2341,8 @@ function buildFoundryJSON() {
         const statsObj = {};
         stats.forEach(stat => {
             const valInput = document.getElementById(`cs-${stat}`);
-            const value = valInput ? parseInt(valInput.value) : parseInt(document.getElementById(`${stat}-value`).innerText);
+            let value = valInput ? parseInt(valInput.value) : parseInt(document.getElementById(`${stat}-value`)?.innerText);
+            if (!Number.isFinite(value)) value = 0; // L6: cleared input must not export as null
             const key = stat.toLowerCase();
             statsObj[key] = { value: value, distinguishing_feature: '' };
         });
@@ -3241,7 +3245,7 @@ function lpSyncBar() {
     const maxHp = (str || con) ? Math.ceil((str + con) / 2) : hp;
     const maxWp = pow || wp;
     const maxSan = pow ? Math.min(pow * 5, Math.max(0, 99 - (parseInt(document.getElementById('cs-skill-unnatural')?.value, 10) || 0))) : san;
-    const maxBp = pow ? pow * 4 : bp;
+    const maxBp = pow ? Math.max(0, maxSan - pow) : bp; // L5: official BP max = maxSan - POW
 
     // ── Tracker bar: current values ────────────────────────────────
     setText('lp-cur-hp', hp);
@@ -3868,9 +3872,11 @@ function renderLpBonds() {
             const idx = parseInt(inp.dataset.bondIdx);
             const b = (window.bondsOnSheet || []).filter(b => b && b.name)[idx];
             if (!b) return;
-            const parts = inp.value.split(' — ');
-            b.name = parts[0]?.trim() || b.name;
-            if (parts[1] !== undefined) b.relationship = parts[1]?.trim() || '';
+            // L7: split at the FIRST separator only, so names/relationships
+            // containing an em dash survive round-trip.
+            const _sep = inp.value.indexOf(' — ');
+            b.name = (_sep >= 0 ? inp.value.slice(0, _sep) : inp.value).trim() || b.name;
+            if (_sep >= 0) b.relationship = inp.value.slice(_sep + 3).trim() || '';
             _saveBonds();
         });
     });
@@ -4385,7 +4391,8 @@ document.addEventListener('keydown', e => {
     const t = e.target;
     // Only fire inside the LP sheet, only on single-line inputs (not textareas)
     if (!t.closest('#lp-sheet')) return;
-    if (t.tagName === 'TEXTAREA') return;
+    // L4: only plain fields commit on Enter; buttons/selects keep native activation (WCAG 2.1.1)
+    if (t.tagName === 'TEXTAREA' || (t.tagName !== 'INPUT' && t.tagName !== 'SELECT')) return;
     e.preventDefault();
     t.blur();
 });

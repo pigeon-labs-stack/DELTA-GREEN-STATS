@@ -276,10 +276,8 @@
 .theme-modern #random-point-buy,
 .theme-modern #random-dice-roll,
 .theme-modern #random-bio-button,
-.theme-modern #add-skill-button,
 .theme-modern #bonds-button,
 .theme-modern #add-bond-button,
-.theme-modern #share-link-btn,
 .theme-modern #preview-json,
 .theme-modern #export-json,
 .theme-modern #refresh-stats,
@@ -295,10 +293,8 @@
 .theme-modern #random-point-buy:hover,
 .theme-modern #random-dice-roll:hover,
 .theme-modern #random-bio-button:hover,
-.theme-modern #add-skill-button:hover,
 .theme-modern #bonds-button:hover,
 .theme-modern #add-bond-button:hover,
-.theme-modern #share-link-btn:hover,
 .theme-modern #preview-json:hover,
 .theme-modern #export-json:hover,
 .theme-modern #refresh-stats:hover,
@@ -3008,20 +3004,6 @@ legend {
     padding: var(--spacing-lg) var(--spacing-md) var(--spacing-md);
 }
 
-.advanced-options-hints {
-    font-size: 0.78rem;
-    font-style: italic;
-    opacity: 0.6;
-    margin-left: 6px;
-    font-weight: normal;
-    text-transform: none;
-    letter-spacing: 0;
-}
-
-#advanced-options-details[open] .advanced-options-hints {
-    display: none;
-}
-
 /* Textarea sizing */
 textarea {
     width: 100%;
@@ -5530,10 +5512,16 @@ input[type="checkbox"]:checked+label {
 .theme-field-doc #stats-buy-section+.button-container,
 .theme-field-doc #character-sheet>fieldset,
 .theme-field-doc #cs-json,
-.theme-field-doc .advanced-options-hints,
 .theme-field-doc .page-title,
 .theme-field-doc .site-intro {
     display: none !important;
+}
+
+/* L17: the wizard re-mounts the stat section into #wiz-outer; it must
+   stay visible in Live Play while the wizard is active. */
+.theme-field-doc #wiz-outer #stats-buy-section,
+.theme-field-doc #wiz-outer #stats-buy-section + .button-container {
+    display: block !important;
 }
 
 /* ── Show the full LP sheet view ─────────────────────────────────── */
@@ -6733,7 +6721,6 @@ input[type="checkbox"]:checked+label {
 
 /* Adjust/increment buttons: touch-friendly but compact */
 .theme-mobile .adjust-button,
-.theme-mobile .stat-dec-btn,
 .theme-mobile .stat-inc-btn {
     min-width: 36px;
     min-height: 36px;

@@ -282,7 +282,7 @@
                     .forEach(item => { if (item.name) gearLines.push(item.name); });
             } else {
                 // Fallback: dump all equipment names (no type info available)
-                equipment.forEach(n => { if (n) gearLines.push(n); });
+                equipment.forEach(n => { const _g = typeof n === 'string' ? n : (n && n.name); if (_g) gearLines.push(_g); }); // L16
             }
             setField(form, "15 ARMOR AND GEAR", gearLines.join("\n").trim());
 
@@ -311,7 +311,7 @@
             const pdfBytes = await pdfDoc.save();
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
             const url = URL.createObjectURL(blob);
-            const safeName = (bio.name || "Agent").replace(/[^a-z0-9 \-_]/gi, "").trim() || "Agent";
+            const safeName = (bio.name || "Agent").replace(/[^\p{L}\p{N} \-_]/gu, "").trim() || "Agent"; // L15: keep unicode letters
             const a = Object.assign(document.createElement("a"), {
                 href: url,
                 download: safeName + " - DD Form 315.pdf",
@@ -446,7 +446,7 @@
                 };
 
                 if (typeof window.dgSaveLoad?.applyState === 'function') {
-                    window.dgSaveLoad.applyState(state);
+                    window.dgSaveLoad.applyState(window.dgSaveLoad.validateState ? window.dgSaveLoad.validateState(state) : state);
                     setTimeout(() => { window.dgSaveLoad.save?.(); if (typeof syncLpFromForm === 'function') syncLpFromForm(); }, 300);
                     if (window.showToast) showToast('Character imported from PDF! Review stats and skills \u2014 specialties must be re-entered manually.');
                 } else {

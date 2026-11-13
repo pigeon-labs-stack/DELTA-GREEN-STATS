@@ -42,7 +42,7 @@ function _esc(str) {
 /** SECURITY: coerce a possibly-imported value to a finite integer (0 when not numeric). */
 function _int(v) {
   const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.min(9999, Math.max(0, n)) : 0; // L10: bounded
 }
 
 /** F10: keep a parsed 0 (e.g. HP 0 — dying agent); fall back only when NaN. */
@@ -472,7 +472,7 @@ function _buildPrintableHTML(data, stateJSON = null) {
   body { font-family: Arial, Helvetica, sans-serif; background:#fff; color:#000; font-size:8pt; line-height:1.3; }
   .page { width:210mm; min-height:297mm; margin:0 auto; padding:5mm 6mm 4mm 6mm; background:#fff;
           display:flex; flex-direction:column; page-break-after:always; }
-  .page:last-child { page-break-after:auto; }
+  .page:last-of-type { page-break-after:auto; }
   .dg-title { background:#000; color:#fff; text-align:center; font-size:22pt; font-weight:900;
                letter-spacing:6px; text-transform:uppercase; padding:4px 0 6px; margin-bottom:0; font-family:'Arial Black',Arial,sans-serif; }
   table { border-collapse:collapse; }
@@ -495,7 +495,7 @@ function _buildPrintableHTML(data, stateJSON = null) {
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { background:#fff; }
     .page { margin:0; width:100%; padding:4mm 5mm 3mm 5mm; height:297mm; min-height:0; overflow:hidden; page-break-after:always; }
-    .page:last-child { page-break-after:auto; }
+    .page:last-of-type { page-break-after:auto; }
     .stats-psych-row { flex: 0 0 95mm; overflow:hidden; }
     .skills-row { flex: 1 1 0; overflow:hidden; }
     .wounds-row { flex: 0 0 42mm; overflow:hidden; }
@@ -695,7 +695,7 @@ function _buildPrintableHTML(data, stateJSON = null) {
         <!-- 17: Personal Details -->
         <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #000;">
           <div class="sec-hd">17.&nbsp;&nbsp;PERSONAL DETAILS AND NOTES</div>
-          <div style="flex:1;padding:4px;font-size:8pt;white-space:pre-wrap;">${_esc(bio.personalDetails || lpRemarks || '')}</div>
+          <div style="flex:1;padding:4px;font-size:8pt;white-space:pre-wrap;">${_esc([bio.personalDetails, lpRemarks].filter(Boolean).join('\n\n'))}</div>
         </div>
         <!-- 18 + 19 stacked -->
         <div style="flex:1;display:flex;flex-direction:column;">

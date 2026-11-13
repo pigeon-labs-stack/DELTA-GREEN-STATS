@@ -686,6 +686,18 @@
         const themeSel = document.getElementById('cs-theme-select');
         if (themeSel) themeSel.dispatchEvent(new Event('change'));
 
+        // L12: reset the applied-profession/applied-bonus badges and reminders
+        const _pBtn = document.getElementById('apply-profession-button');
+        if (_pBtn) { _pBtn.classList.remove('apply-profession-done'); _pBtn.textContent = 'Apply Professional Skills'; }
+        const _bBtn = document.getElementById('apply-bonus-button');
+        if (_bBtn) _bBtn.classList.remove('apply-bonus-done');
+        const _rBtn = document.getElementById('reset-bonus-button');
+        if (_rBtn) _rBtn.style.display = 'none';
+        const _rp = document.getElementById('reminder-apply-profession');
+        if (_rp) _rp.style.display = '';
+        const _rb = document.getElementById('reminder-apply-bonus');
+        if (_rb) _rb.style.display = '';
+
         // Reset point-buy stats (stat spans + derived values) to defaults
         if (typeof resetStats === 'function') resetStats();
 
@@ -1083,7 +1095,7 @@
     /* =========================================================================
        PUBLIC API
     ========================================================================= */
-    window.dgSaveLoad = { save, loadLocal, share, clearSave, clearSheet, downloadSheet, uploadSheet, collectState, applyState, importFromSheet, showToast };
+    window.dgSaveLoad = { save, loadLocal, share, clearSave, clearSheet, downloadSheet, uploadSheet, collectState, applyState, validateState, importFromSheet, showToast };
 
     /* =========================================================================
        INIT — L1: chain on scripts.js coreReady promise (no timer guessing);
