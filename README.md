@@ -340,6 +340,11 @@ DELTA-GREEN-STATS/
     └── vendor/          # pdf-lib.min.js, jszip.min.js (SRI-pinned, local-first)
 ```
 
+Data in `professions.js` and `equipment-data.js` was verified line-by-line
+against the **Delta Green Agent's Handbook, Sixth printing (2024)**. Stat
+changes made in this repo (occupation skill lists, weapon lethality, expense
+values, item names) conform to that printing and issue.
+
 ---
 
 ## Technologies

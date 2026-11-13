@@ -71,7 +71,7 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '', skill: 'unarmed_combat', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D4', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Incidental', equipped: true }
     },
     {
-        category: 'Melee Weapons', name: 'Garrote', type: 'weapon',
+        category: 'Melee Weapons', name: 'Garotte', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/rope.svg', flags: {}, effects: [],
         system: { name: '', description: '<p><em>Works only from surprise. Target is pinned and cannot make a sound; does 1D6 damage per round until escape or death. A Kevlar garrote can cut through flexible cuffs.</em></p>', skill: 'unarmed_combat', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D6', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Incidental', equipped: true }
     },
@@ -81,7 +81,7 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '', skill: 'melee_weapons', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D4', armorPiercing: 3, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Incidental', equipped: true }
     },
     {
-        category: 'Melee Weapons', name: 'Long knife or combat dagger', type: 'weapon',
+        category: 'Melee Weapons', name: 'Large knife or combat dagger', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/combat-knife.svg', flags: {}, effects: [],
         system: { name: '', description: '', skill: 'melee_weapons', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D6', armorPiercing: 3, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Incidental', equipped: true }
     },
@@ -116,7 +116,7 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '', skill: 'melee_weapons', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D10', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Incidental', equipped: true }
     },
     {
-        category: 'Melee Weapons', name: 'Long sword', type: 'weapon',
+        category: 'Melee Weapons', name: 'Large sword', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/long-sword.svg', flags: {}, effects: [],
         system: { name: '', description: '', skill: 'melee_weapons', skillModifier: 0, customSkillTarget: 50, range: '1M', damage: '1D10', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '', expense: 'Standard', equipped: true }
     },
@@ -195,6 +195,11 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '<p><em><strong>RESTRICTED.</strong> Examples: M120, 2B11 Sani.</em></p>', skill: 'artillery', skillModifier: 20, customSkillTarget: 50, range: '4KM', damage: '', armorPiercing: 5, lethality: 35, isLethal: true, killRadius: '50M', ammo: '1', expense: 'Major', equipped: true }
     },
     {
+        category: 'Artillery', name: 'Artillery', type: 'weapon',
+        img: 'systems/deltagreen/assets/icons/mortar.svg', flags: {}, effects: [],
+        system: { name: '', description: '<p><strong>RESTRICTED.</strong> Requires special training. Examples: M109, M777, 2A65 Msta-B, 2S19 Msta-S.</p>', skill: 'artillery', skillModifier: 20, customSkillTarget: 50, range: '5KM', damage: '', armorPiercing: 10, lethality: 50, isLethal: true, killRadius: '100M', ammo: '1', expense: 'Extreme', equipped: true }
+    },
+    {
         category: 'Artillery', name: 'General-purpose bomb', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/general-purpose-bomb.svg', flags: {}, effects: [],
         system: { name: '', description: '<p><em><strong>RESTRICTED.</strong> Requires special training. Examples: MK 82, FAB-250.</em></p>', skill: 'artillery', skillModifier: 20, customSkillTarget: 50, range: 'Air-dropped', damage: '', armorPiercing: 10, lethality: 70, isLethal: true, killRadius: '100M', ammo: '', expense: 'Unusual', equipped: true }
@@ -256,22 +261,22 @@ window.DG_EQUIPMENT_CATALOG = [
     {
         category: 'Less-Lethal', name: 'Flash-bang grenade, thrown', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/flash-bang-grenade.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>Restricted.</strong> Requires special training. Radius halved outdoors. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1D6 turns</em></p>', skill: 'athletics', skillModifier: 0, customSkillTarget: 50, range: '20M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '1', expense: 'Standard', equipped: true }
+        system: { name: '', description: '<p><em><strong>Restricted.</strong> Requires special training. Radius halved outdoors. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1D6 turns</em></p>', skill: 'athletics', skillModifier: 0, customSkillTarget: 50, range: '20M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '1', expense: 'Incidental', equipped: true }
     },
     {
         category: 'Less-Lethal', name: 'Flash-bang grenade, launched', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/flash-bang-grenade.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>Restricted.</strong> Radius halved outdoors. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1D6 turns</em></p>', skill: 'heavy_weapons', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '1', expense: 'Standard', equipped: true }
+        system: { name: '', description: '<p><em><strong>Restricted.</strong> Radius halved outdoors. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1D6 turns</em></p>', skill: 'heavy_weapons', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: 'N/A', ammo: '1', expense: 'Incidental', equipped: true }
     },
     {
         category: 'Less-Lethal', name: 'Tear gas grenade, thrown', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/tear-gas-grenade.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>Restricted.</strong> Requires special training. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1 hr</em></p>', skill: 'athletics', skillModifier: 0, customSkillTarget: 50, range: '20M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: '10M', ammo: '1', expense: 'Standard', equipped: true }
+        system: { name: '', description: '<p><em><strong>Restricted.</strong> Requires special training. Radius: 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1 hr</em></p>', skill: 'athletics', skillModifier: 0, customSkillTarget: 50, range: '20M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: '10M', ammo: '1', expense: 'Incidental', equipped: true }
     },
     {
         category: 'Less-Lethal', name: 'Tear gas grenade, launched', type: 'weapon',
         img: 'systems/deltagreen/assets/icons/tear-gas-grenade.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em><strong>Restricted. Radius:</strong> 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1 hr</em></p>', skill: 'heavy_weapons', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: '10M', ammo: '1', expense: 'Standard', equipped: true }
+        system: { name: '', description: '<p><em><strong>Restricted. Radius:</strong> 10 m. <strong>Victim\'s Penalty:</strong> \u221240% for 1 hr</em></p>', skill: 'heavy_weapons', skillModifier: 0, customSkillTarget: 50, range: '50M', damage: '', armorPiercing: 0, lethality: 0, isLethal: false, killRadius: '10M', ammo: '1', expense: 'Incidental', equipped: true }
     },
     {
         category: 'Less-Lethal', name: 'Pepper spray keychain', type: 'weapon',
@@ -365,7 +370,7 @@ window.DG_EQUIPMENT_CATALOG = [
     {
         category: 'Surveillance', name: 'Advanced drone', type: 'gear',
         img: 'systems/deltagreen/assets/icons/drone.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em>Requires Pilot (Drone) skill.</em></p>', equipped: true, expense: 'Standard' }
+        system: { name: '', description: '<p><em>Requires Pilot (Drone) skill.</em></p>', equipped: true, expense: 'Unusual' }
     },
     {
         category: 'Surveillance', name: 'Military-grade drone', type: 'gear',
@@ -390,7 +395,7 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '', equipped: true, expense: 'Incidental' }
     },
     {
-        category: 'Comms & Tech', name: 'Earpiece communication set', type: 'gear',
+        category: 'Comms & Tech', name: 'Earpiece communicator set', type: 'gear',
         img: 'systems/deltagreen/assets/icons/sound.svg', flags: {}, effects: [],
         system: { name: '', description: '', equipped: true, expense: 'Standard' }
     },
@@ -427,10 +432,10 @@ window.DG_EQUIPMENT_CATALOG = [
     {
         category: 'Comms & Tech', name: 'Advanced data-analysis software', type: 'gear',
         img: 'systems/deltagreen/assets/icons/software.svg', flags: {}, effects: [],
-        system: { name: '', description: '<p><em>Requires Computer Science or special training (INT).</em></p>', equipped: true, expense: 'Standard' }
+        system: { name: '', description: '<p><em>Requires Computer Science or special training (INT).</em></p>', equipped: true, expense: 'Major' }
     },
     {
-        category: 'Comms & Tech', name: 'Cutting-edge encryption or data-mining software', type: 'gear',
+        category: 'Comms & Tech', name: 'Cutting-edge encryption or data-mining encryption', type: 'gear',
         img: 'systems/deltagreen/assets/icons/software.svg', flags: {}, effects: [],
         system: { name: '', description: '<p><em><strong>RESTRICTED.</strong> Requires Computer Science or special training (INT).</em></p>', equipped: true, expense: 'Major' }
     },
@@ -575,7 +580,7 @@ window.DG_EQUIPMENT_CATALOG = [
         system: { name: '', description: '<p><em>Requires special training (Swim).</em></p>', equipped: true, expense: 'Unusual' }
     },
     {
-        category: 'Survival & Medical', name: 'Personal protection equipment (PPE)', type: 'gear',
+        category: 'Survival & Medical', name: 'Personal protective equipment (PPE)', type: 'gear',
         img: 'systems/deltagreen/assets/icons/ppe.svg', flags: {}, effects: [],
         system: { name: '', description: '<p><em>Apron, goggles, gloves, breath mask; provides 2 Armor against chemical and acid splashes and fumes.</em></p>', equipped: true, expense: 'Incidental' }
     },
