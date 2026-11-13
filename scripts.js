@@ -2415,7 +2415,7 @@ function buildFoundryJSON() {
                 img: 'icons/svg/mystery-man.svg',
                 system: {
                     name: '',
-                    description: '<p>' + bond.description.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>',
+                    description: '<p>' + (bond.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>',
                     score: bond.score,
                     relationship: bond.relationship || '?',
                     hasBeenDamagedSinceLastHomeScene: false

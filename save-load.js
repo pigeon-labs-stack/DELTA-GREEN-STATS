@@ -827,7 +827,10 @@
         }
         if (Array.isArray(out.lpCustomSkills)) out.lpCustomSkills = _objs(out.lpCustomSkills).map(sk => { sk.val = String(sk.val ?? '').replace(/[^\d.%]/g, ''); return sk; });
         if (Array.isArray(out.lpWeapons)) out.lpWeapons = _objs(out.lpWeapons).map(w => { w.skillPct = String(w.skillPct ?? '').replace(/[^\d.%]/g, ''); return w; });
-        if (Array.isArray(out.bonds)) out.bonds = _objs(out.bonds).map(b => { if (b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); return b; });
+        if (Array.isArray(out.bonds)) out.bonds = _objs(out.bonds)
+            // F1 class: export path dereferences bond.description — require shape
+            .filter(b => typeof b.name === 'string' && typeof b.description === 'string')
+            .map(b => { if (b.score !== undefined) b.score = _clampInt(b.score, 0, 0, 999); return b; });
         if (out.skills && typeof out.skills === 'object') {
             const sk = {};
             Object.keys(out.skills).forEach(k => {
