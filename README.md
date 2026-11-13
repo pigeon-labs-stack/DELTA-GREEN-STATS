@@ -132,7 +132,7 @@ The wizard is **optional** — experienced players can skip it and fill in the f
 |---|---|
 | Anthropologist or Historian | 4 |
 | Computer Scientist or Engineer | 3 |
-| Criminal | 3 |
+| Criminal | 4 |
 | Federal Agent | 3 |
 | Firefighter | 3 |
 | Foreign Service Officer | 3 |
